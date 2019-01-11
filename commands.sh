@@ -1,0 +1,2 @@
+bsub.py 2.0 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/logs/random_path_consensus_evaluation nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/random_paths_consensus.nf --pangenome_prg /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/temp/test_prg.fa --final_outdir /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/random_path_consensus_evaluation/ -w /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/random_path_consensus_evaluation/work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config
+
