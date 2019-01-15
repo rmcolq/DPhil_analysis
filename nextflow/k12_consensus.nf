@@ -1,5 +1,7 @@
 params.pangenome_prg = ""
-params.number_paths = 10
+params.nanopore_reads = ""
+params.illumina_reads = ""
+params.reference_assembly = ""
 
 params.help = false
 params.final_outdir = "."
@@ -12,9 +14,11 @@ if (params.help){
         Usage: nextflow run pandora_compare.nf <arguments>
         Required arguments:
           --pangenome_prg       FILE    PRG file to use as input to pandora
+	  --nanopore_reads	FILE
+	  --illumina_reads	FILE
+	  --reference_assembly	FILE
 
         Optional:
-	  --number_paths	INT		Number of paths to find through each PRG, default 500
           --final_outdir        DIRECTORY       Where to put final output files
           --max_forks           INT		Number of concurrent jobs, default 100
 
@@ -33,74 +37,39 @@ else {
     exit 1, "Pangenome PRG file not provided -- aborting"
 }
 
+if (params.nanopore_reads) {
+    nanopore_reads = file(params.nanopore_reads).toAbsolutePath()
+    if (!nanopore_reads.exists()) {
+        exit 1, "Nanopore read file not found: ${params.nanopore_reads} -- aborting"
+    }
+}
+else {
+    exit 1, "Nanopore read file not provided -- aborting"
+}
+
+if (params.illumina_reads) {
+    illumina_reads = file(params.illumina_reads).toAbsolutePath()
+    if (!illumina_reads.exists()) {
+        exit 1, "Illumina read file not found: ${params.illumina_reads} -- aborting"
+    }
+}   
+else {
+    exit 1, "Illumina read file not provided -- aborting"
+}
+
+if (params.reference_assembly) {
+    reference_assembly = file(params.reference_assembly).toAbsolutePath()
+    if (!reference_assembly.exists()) {
+        exit 1, "Reference assembly file not found: ${params.reference_assembly} -- aborting"
+    }
+}
+else {
+    exit 1, "Reference assembly file not provided -- aborting"
+}
+
 final_outdir = file(params.final_outdir).toAbsolutePath()
 if (!final_outdir.exists()) {
     exit 1, "Final out directory not found: ${params.final_outdir} -- aborting"
-}
-
-process pandora_random_paths {
-  memory { 7.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  container {
-      'shub://rmcolq/pandora:pandora'
-  }
-
-  input: 
-  file prg from pangenome_prg
-  val num_paths from params.number_paths
-
-  output:
-  file("random_paths.fa") into random_paths_output
-
-  """
-  pandora random_path ${prg} ${num_paths}
-  gunzip random_paths.fa.gz
-  """
-}
- 
-path_nano = Channel.create()
-path_illumina = Channel.create()
-random_paths_output.splitFasta( file: true ).separate( path_nano, path_illumina ) { a -> [a, a] }
-
-process simulate_nanopore_reads {
-  memory { 10.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  maxForks 8
-  container {
-      'shub://rmcolq/Singularity_recipes:nanosimh'
-  }
-
-  input:
-  file(path_fasta) from path_nano
-
-  output:
-  set(file("${path_fasta}"),file("simulated.fa")) into sim_reads_nano
-
-  """
-  nanosim-h -p ecoli_R9_2D -n 100 ${path_fasta}
-  """
-}
-
-process simulate_illumina_reads {
-  memory { 20.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  maxForks 8
-  container {
-      'shub://rmcolq/Singularity_recipes:ART'
-  }
-
-  input:
-  file(path_fasta) from path_illumina
-
-  output:
-  set(file("${path_fasta}"),file("simulated.fq")) into sim_reads_illumina
-
-  """
-  art_illumina -ss HS25 -i ${path_fasta} -l 150 -f 100 -o simulated
-  """
 }
 
 pandora_idx = file(pangenome_prg + '.k15.w14.idx')
@@ -129,74 +98,53 @@ if (!pandora_idx.exists()) {
     }
 }
 
-process pandora_map_path_nano {
-  memory { 0.1.GB * task.attempt }
+process pandora_map_nano {
+  memory { 40.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
-  maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
   }
   
   input:
   file prg from pangenome_prg
-  set(file(path), file(reads)) from sim_reads_nano
+  file reads from nanopore_reads
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora/pandora.consensus.fq.gz"), file("${path}") into pandora_output_path_nano
+  set file("pandora/pandora.consensus.fq.gz"), val("Nanopore") into pandora_output_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --genome_size 1000
+  pandora map -p ${prg} -r ${reads}
   """
 } 
 
-process pandora_map_path_illumina {
-  memory { 0.1.GB * task.attempt }
+process pandora_map_illumina {
+  memory { 40.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
-  maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
-  }   
-  
-  input:
-  file prg from pangenome_prg
-  set(file(path), file(reads)) from sim_reads_illumina
-  file index from pandora_idx
-  file kmer_prgs from pandora_kmer_prgs
-  
-  output:
-  set file("pandora/pandora.consensus.fq.gz"), file("${path}") into pandora_output_path_illumina
-  
-  """
-  pandora map -p ${prg} -r ${reads} --illumina --genome_size 1000
-  """
-} 
-
-process compare_output_path_to_input_nano {
-  memory { 0.01.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  maxForks params.max_forks
-  container {
-      'shub://rmcolq/Singularity_recipes:minos'
   }
 
   input:
-  set file(out_path), file(in_path) from pandora_output_path_nano
+  file prg from pangenome_prg
+  file reads from illumina_reads
+  file index from pandora_idx
+  file kmer_prgs from pandora_kmer_prgs
 
   output:
-  file("out.sam") into output_sam_nano
+  set file("pandora/pandora.consensus.fq.gz"), val("Illumina") into pandora_output_illumina
 
   """
-  bwa index ${in_path}
-  bwa mem ${in_path} ${out_path} > out.sam
+  pandora map -p ${prg} -r ${reads} --illumina
   """
 }
 
-process compare_output_path_to_input_illumina {
+pandora_output_nano.concat( pandora_output_illumina ).set { pandora_output }
+
+process compare_output_to_input {
   memory { 0.01.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
@@ -204,23 +152,19 @@ process compare_output_path_to_input_illumina {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-      
+
   input:
-  set file(out_path), file(in_path) from pandora_output_path_illumina
-  
+  set file(out_path), val(type) from pandora_output
+  file(reference) from reference_assembly
+
   output:
-  file("out.sam") into output_sam_illumina
-  
+  set file("out.sam"), val(type) into output_sam
+
   """
-  bwa index ${in_path}
-  bwa mem ${in_path} ${out_path} > out.sam
-  """ 
-} 
-
-output_sam_nano.collectFile(name: final_outdir/'pandora_random_paths_nano.sam').set { full_sam_nano }
-output_sam_illumina.collectFile(name: final_outdir/'pandora_random_paths_illumina.sam').set { full_sam_illumina }
-
-full_sam_nano.concat( full_sam_illumina ).set { full_sam }
+  bwa index ${reference}
+  bwa mem ${reference} ${out_path} > out.sam
+  """
+}
 
 process make_plot {
   memory { 0.1.GB * task.attempt } 
@@ -232,10 +176,10 @@ process make_plot {
   publishDir final_outdir, mode: 'copy', overwrite: false
   
   input:
-  file(samfile) from full_sam
+  set file(samfile), val(sam) from output_sam
   
   output:
-  file("${samfile}.sam_mismatch_counts.png") into output_plot
+  file("${type}.sam_mismatch_counts.png") into output_plot
 
   """
   #!/usr/bin/env python3
@@ -277,7 +221,7 @@ process make_plot {
       fig, ax = plt.subplots()
       sns.distplot(num_mismatches, bins=range(0, max(num_mismatches)+2, 1), kde=False)
       ax.set(title="Distribution of Number of Mismatch Bases in Consensus", xlabel='Number of mismatch bases', ylabel='Frequency')
-      plt.savefig('%s.sam_mismatch_counts.png' %sam_file, transparent=True)
+      plt.savefig('sam_mismatch_counts.png', transparent=True)
     
   plot_sam_dist("${samfile}")
   """
