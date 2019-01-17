@@ -1,5 +1,5 @@
 params.pangenome_prg = ""
-params.number_paths = 10
+params.number_paths = 1
 
 params.help = false
 params.final_outdir = "."

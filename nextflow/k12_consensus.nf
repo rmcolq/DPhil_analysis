@@ -176,7 +176,7 @@ process make_plot {
   publishDir final_outdir, mode: 'copy', overwrite: false
   
   input:
-  set file(samfile), val(sam) from output_sam
+  set file(samfile), val(type) from output_sam
   
   output:
   file("${type}.sam_mismatch_counts.png") into output_plot
@@ -191,7 +191,7 @@ process make_plot {
   import pandas as pd
   import numpy as np
 
-  def plot_sam_dist(sam_file):
+  def plot_sam_dist(sam_file, type):
       total_gene_bases = 0
       total_mismatch_bases = 0
       num_false_positives = 0
@@ -221,8 +221,8 @@ process make_plot {
       fig, ax = plt.subplots()
       sns.distplot(num_mismatches, bins=range(0, max(num_mismatches)+2, 1), kde=False)
       ax.set(title="Distribution of Number of Mismatch Bases in Consensus", xlabel='Number of mismatch bases', ylabel='Frequency')
-      plt.savefig('sam_mismatch_counts.png', transparent=True)
+      plt.savefig('%s.sam_mismatch_counts.png' %type, transparent=True)
     
-  plot_sam_dist("${samfile}")
+  plot_sam_dist("${samfile}", "${type}")
   """
 }
