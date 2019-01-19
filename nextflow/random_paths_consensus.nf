@@ -65,7 +65,7 @@ random_paths_output.splitFasta( file: true ).separate( path_nano, path_illumina 
 
 process simulate_nanopore_reads {
   memory { 10.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks 8
   container {
@@ -80,12 +80,17 @@ process simulate_nanopore_reads {
 
   """
   nanosim-h -p ecoli_R9_2D -n 100 ${path_fasta}
+  if [[ -s simulated.fa ]] ; then
+  echo "simulated.fa has data."
+  else
+  rm simulated.fa
+  fi 
   """
 }
 
 process simulate_illumina_reads {
   memory { 20.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks 8
   container {
@@ -100,6 +105,11 @@ process simulate_illumina_reads {
 
   """
   art_illumina -ss HS25 -i ${path_fasta} -l 150 -f 100 -o simulated
+  if [[ -s simulated.fq ]] ; then
+  echo "simulated.fq has data."
+  else
+  rm simulated.fq
+  fi
   """
 }
 
@@ -130,7 +140,7 @@ if (!pandora_idx.exists()) {
 }
 
 process pandora_map_path_nano {
-  memory { 0.1.GB * task.attempt }
+  memory { 10.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   maxForks params.max_forks
@@ -153,7 +163,7 @@ process pandora_map_path_nano {
 } 
 
 process pandora_map_path_illumina {
-  memory { 0.1.GB * task.attempt }
+  memory { 10.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   maxForks params.max_forks

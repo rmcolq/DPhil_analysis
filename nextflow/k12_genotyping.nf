@@ -8,7 +8,7 @@ params.albacore_summary = ""
 
 params.help = false
 params.testing = false
-params.pipeline_root = ""
+params.pipeline_root = "/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis"
 params.final_outdir = "."
 params.max_forks = 10
 
@@ -20,6 +20,7 @@ if (params.help){
         Required arguments:
           --truth_assembly	FILE	Assembly true sequence for reads
           --pangenome_prg	FILE	PRG file to use as input to pandora
+	  --fasta_for_ref	FILE	Fasta of annotated sequences to use as reference paths through PRG
 
 	At least one required:
 	  --nanopore_reads	FILE	Fastaq[gz] file of nanopore reads to make calls from
@@ -29,6 +30,7 @@ if (params.help){
 	Optional:
 	  --raw_fast5s		DIR	Directory where raw fast5 nanopore files are (for use by nanopolish)
 	  --albacore_summary	FILE	The sequencing_summary.txt file output by albacore during basecalling (speeds up nanopolish)
+	  --mask		FILE	Mask of regions of truth_assembly to ignore
 
 	  --testing
 	  --pipeline_root
@@ -53,6 +55,16 @@ if (params.truth_assembly) {
 }
 else {
     exit 1, "Truth assembly file not provided -- aborting"
+}
+
+if (params.fasta_for_ref) {
+    fasta_for_ref = file(params.fasta_for_ref).toAbsolutePath()
+    if (!fasta_for_ref.exists()) {
+        exit 1, "Fasta file of annotated sequences for reference paths not found: ${params.fasta_for_ref} -- aborting"
+    }
+}       
+else {
+    exit 1, "Fasta file of annotated sequences for reference paths not provided -- aborting"
 }
 
 if (!params.nanopore_reads && !params.illumina_reads_2 && !params.illumina_reads_1) {
@@ -136,17 +148,18 @@ process pandora_get_ref_vcf {
 
   input:
   file pangenome_prg
-  file params.fasta_for_ref
+  file fasta_for_ref
   file truth_assembly
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
 
   output:
-  set file("pandora/pandora_genotyped.vcf"), file("${pangenome_prg}.vcf_ref.fa.gz") into ref_vcf
+  set file("pandora/pandora_genotyped.vcf"), file("${pangenome_prg}.vcf_ref.fa") into ref_vcf
 
   """
-  pandora get_vcf_ref ${pangenome_prg} ${params.fasta_for_ref}
+  pandora get_vcf_ref ${pangenome_prg} ${fasta_for_ref}
   pandora map -p ${pangenome_prg} -r ${truth_assembly} --vcf_refs ${pangenome_prg}.vcf_ref.fa.gz --genotype
+  gunzip ${pangenome_prg}.vcf_ref.fa.gz
   """
 }
 
@@ -168,12 +181,21 @@ process simulate_new_ref {
   set file("simulated_vars.vcf"), file("${ref}") into true_variants
 
   """
-  bwa index ${truth_assembly}
-  bwa mem ${truth_assembly} ${ref} > out.sam
-  python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref ${truth_assembly} --sam out.sam --out_vcf simulated_vars.vcf
+  v=${truth_assembly}
+  if [ \${v: -3} == ".gz" ]
+  then
+    zcat \$v | awk '{print \$1;}' > \${v::-3}
+    v=\${v::-3}
+  else
+    cat \$v | awk '{print \$1;}' > n.\$v
+    mv n.\$v \$v
+  fi
+  bwa index \$v
+  bwa mem \$v ${ref} > out.sam
+  python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref \$v --sam out.sam --out_vcf simulated_vars.vcf
   bgzip simulated_vars.vcf
   tabix -p vcf simulated_vars.vcf.gz
-  cat ${truth_assembly} | vcf-consensus simulated_vars.vcf.gz > simulated_ref.fa
+  cat \$v | vcf-consensus simulated_vars.vcf.gz > simulated_ref.fa
   """
 }
 
@@ -199,7 +221,7 @@ if (params.nanopore_reads) {
 
     	"""
 	which pandora
-    	pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --vcf_refs ${vcf_ref} --genotype --outdir pandora
+    	pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --genotype --outdir pandora
 	mv pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
 	gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_full.ref.fa
 
@@ -221,14 +243,13 @@ if (params.nanopore_reads) {
         file pangenome_prg
         file pandora_idx
         file pandora_kmer_prgs
-        file vcf_ref
 
         output:
 	set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
 
         """
 	which pandora
-        pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --vcf_refs ${vcf_ref} --genotype --max_covg 30 --outdir pandora
+        pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --genotype --max_covg 30 --outdir pandora
         mv pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
         gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_30X.ref.fa
         """
@@ -393,14 +414,13 @@ if (params.illumina_reads_1) {
         file pangenome_prg
         file pandora_idx
 	file pandora_kmer_prgs
-        file vcf_ref
 
         output:
 	set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
 
         """
 	
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} -w 14 -k 15 --vcf_refs ${vcf_ref} --genotype --illumina --outdir pandora
+        pandora map -p ${pangenome_prg} -r ${illumina_reads} -w 14 -k 15 --genotype --illumina --outdir pandora
 	mv pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_illumina.ref.fa
         """

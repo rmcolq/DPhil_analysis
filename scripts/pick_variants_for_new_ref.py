@@ -35,6 +35,9 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, var_size_thresh, p
             for s in sam_reader.fetch(until_eof=True):
                 name = str(s).split("\t")[0]
                 if name == record.CHROM:
+                    if s.is_unmapped:
+                        print("UNMAPPED")
+                        break
                     record_copy = copy.deepcopy(record)
                     record.CHROM = s.reference_name
                     orientation = s.is_reverse
@@ -57,6 +60,7 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, var_size_thresh, p
                     if(truth_local_seq == ref_seq):
                         vcf_writer.write_record(record)
                         last_record = record_copy
+                        break
         
 parser = argparse.ArgumentParser(description='Takes a VCF and the VCF reference sequences and randomly selects some. Using a SAM file mapping sequences in the VCF reference to a reference assembly, writes this subset of variants with respect to the reference assembly')
 parser.add_argument('--in_vcf', type=str,
