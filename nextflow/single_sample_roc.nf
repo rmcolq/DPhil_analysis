@@ -54,28 +54,39 @@ vcfs_to_check = Channel.fromFilePairs("${params.vcf_directory}/*.{vcf,ref.fa}", 
 pandora_consensus = Channel.fromPath("${params.vcf_directory}/pandora*consensus*")
 
 if (params.mask) {
-process check_vcf {
-    memory { 1.GB * task.attempt }
-    errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-    maxRetries 2
-    container {
-          'shub://rmcolq/Singularity_recipes:minos'
+    process check_vcf {
+        memory { 1.GB * task.attempt }
+        errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+        maxRetries 2
+        container {
+            'shub://rmcolq/Singularity_recipes:minos'
         }
-    input:
-    set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
-    file truth_assembly
-    file mask
 
-    output:
-    set file("minos.*"), val("${name}"), file("${vcf_reference}"), file("${truth_assembly}") into minos_output
+        input:
+        set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
+        file truth_assembly
+        file mask
 
-    """
-    echo "${vcf}"
-    echo "${vcf_reference}"
-    bwa index ${truth_assembly}
-    minos check_with_ref ${vcf} ${vcf_reference} ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls --exclude_bed ${mask}
-    """
-}
+        output:
+        set file("minos.*"), val("${name}"), file("${vcf_reference}"), file("${truth_assembly}") into minos_output
+
+        """
+        echo "${vcf}"
+        echo "${vcf_reference}"
+        v=${vcf_reference}
+        if [ \${v: -3} == ".gz" ]
+        then
+          zcat \$v | awk '{print \$1;}' > \${v::-3}
+          v=\${v::-3}
+        else
+          cat \$v | awk '{print \$1;}' > n.\$v
+          mv n.\$v \$v
+        fi
+        bwa index ${truth_assembly}
+        minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls --exclude_bed ${mask}
+        """
+    }
+} 
 else {
 process check_vcf {
     memory { 1.GB * task.attempt }
@@ -95,33 +106,21 @@ process check_vcf {
     """
     echo "${vcf}"
     echo "${vcf_reference}"
+    v=${vcf_reference}
+    if [ \${v: -3} == ".gz" ]
+    then
+      zcat \$v | awk '{print \$1;}' > \${v::-3}
+      v=\${v::-3}
+    else
+      cat \$v | awk '{print \$1;}' > n.\$v
+      mv n.\$v \$v
+    fi
     bwa index ${truth_assembly}
-    minos check_with_ref ${vcf} ${vcf_reference} ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls
+    minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls
     """
 }
 }
    
-process check_vcf {
-    memory { 1.GB * task.attempt }
-    errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-    maxRetries 2
-    container {
-          'shub://rmcolq/Singularity_recipes:minos'
-        }
-    input:
-    set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
-    file truth_assembly
-    
-    output:
-    set file("minos.*"), val("${name}"), file("${vcf_reference}"), file("${truth_assembly}") into minos_output
-
-    """
-    echo "${vcf}"
-    echo "${vcf_reference}"
-    bwa index ${truth_assembly}
-    minos check_with_ref ${vcf} ${vcf_reference} ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls
-    """
-}
 
 process minos_to_df {
     errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -191,6 +190,8 @@ process make_pr {
           'shub://rmcolq/Singularity_recipes:minos'
         }
 
+    publishDir final_outdir, mode: 'copy', overwrite: false
+
     input:
     file 'all.pkl' from pr_dfs
    
@@ -234,8 +235,10 @@ process make_pr {
         colormap_pandora = plt.cm.autumn
         colormap_snippy = plt.cm.winter
         colormap_nanopolish = plt.cm.cool
+        colormap_other = plt.cm.summer
         snippy_i = 0
         nanopolish_i = 0
+        other_i = 0
     
         # Make a scatter plot
         items = loadall('all.pkl')
@@ -258,6 +261,10 @@ process make_pr {
                     col = colormap_nanopolish(nanopolish_i*20)
                     ax.scatter(x['precision'],x['recall'], label=x['name'].values[0], c=col, alpha=0.5)
                     nanopolish_i += 1
+                elif x['name'].values[0].startswith("pandora_genotyped_"):
+                    col = colormap_other(other_i*100)
+                    ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    other_i += 1
             else:
                 print(x['name'])
 
@@ -276,6 +283,8 @@ process make_fpc {
     container {
           'shub://rmcolq/Singularity_recipes:minos'
         }
+
+    publishDir final_outdir, mode: 'copy', overwrite: false
 
     input:
     file 'all.pkl' from fpc_dfs
@@ -320,8 +329,10 @@ process make_fpc {
         colormap_pandora = plt.cm.autumn
         colormap_snippy = plt.cm.winter
         colormap_nanopolish = plt.cm.cool
+        colormap_other = plt.cm.summer
         snippy_i = 0
         nanopolish_i = 0
+        other_i = 0
 
         # Make a scatter plot
         items = loadall('all.pkl')
@@ -344,6 +355,10 @@ process make_fpc {
                     col = colormap_nanopolish(nanopolish_i*20)
                     ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                     nanopolish_i += 1
+                elif x['name'].values[0].startswith("pandora_genotyped_"):
+                    col = colormap_other(other_i*100)
+                    ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    other_i += 1
             else:
                 print(x['name'])
 
@@ -362,6 +377,8 @@ process make_roc {
     container {
           'shub://rmcolq/Singularity_recipes:minos'
         }
+
+    publishDir final_outdir, mode: 'copy', overwrite: false
 
     input:
     file 'all.pkl' from roc_dfs
@@ -439,7 +456,7 @@ process make_roc {
     """
 }
 
-process filter_vcf {
+/*process filter_vcf {
     errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
     maxRetries 2
     container {
@@ -523,4 +540,4 @@ process evaluate_genome_covered_consensus {
 vcf_summary.concat(consensus_summary).set { summary }
 
 summary.collectFile(name: final_outdir/'summary.txt')
-
+*/

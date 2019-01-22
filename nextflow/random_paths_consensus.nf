@@ -84,6 +84,7 @@ process simulate_nanopore_reads {
   echo "simulated.fa has data."
   else
   rm simulated.fa
+  exit 1
   fi 
   """
 }
@@ -109,6 +110,7 @@ process simulate_illumina_reads {
   echo "simulated.fq has data."
   else
   rm simulated.fq
+  exit 1
   fi
   """
 }

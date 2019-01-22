@@ -12,25 +12,26 @@ def rev_comp(s):
     comp = ''.join(letters)
     return comp[::-1]
 
-def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, var_size_thresh, p):
+def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_var_size, p):
     vcf_reader = vcf.Reader(open(vcf_file, 'r'))
     vcf_writer = vcf.Writer(open(out_vcf, 'w'), vcf_reader)
     record_dict = SeqIO.to_dict(SeqIO.parse(vcf_ref, "fasta"))
     truth_dict = SeqIO.to_dict(SeqIO.parse(truth, "fasta"))
     
     last_record = None
-    n, p = 1, .1  # number of trials, probability of each trial
+    n = 1  # number of trials
     sum_keep = 0
     sum_throw = 0
     for record in vcf_reader:
-        if len(record.REF) < var_size_thresh \
+        if min_var_size <= len(record.REF) <= max_var_size \
         and (last_record == None \
              or record.CHROM != last_record.CHROM \
              or record.POS > last_record.POS + len(last_record.REF)) \
         and np.random.binomial(n, p) == 1:
             chrom_seq = str(record_dict[record.CHROM].seq)
             ref_seq = chrom_seq[record.POS-1:record.POS+len(record.REF)-1]
-            assert(ref_seq == record.REF)
+            if ref_seq != record.REF:
+                continue
             sam_reader = pysam.AlignmentFile(sam_file, "r", check_sq=False)
             for s in sam_reader.fetch(until_eof=True):
                 name = str(s).split("\t")[0]
@@ -57,7 +58,7 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, var_size_thresh, p
                         record.ALT[0] = rev_comp(alt)
                         record.ALT = record.ALT[:1]
                         record.REF = rev_comp(record.REF)
-                    if(truth_local_seq == ref_seq):
+                    if(truth_local_seq == ref_seq and min_var_size <= len(record.ALT[0]) <= max_var_size):
                         vcf_writer.write_record(record)
                         last_record = record_copy
                         break
@@ -73,10 +74,12 @@ parser.add_argument('--ref', type=str,
                     help='Reference FASTA with respect to output VCF')
 parser.add_argument('--out_vcf', type=str,
                     help='VCF for output')
-parser.add_argument('--var_size_thresh', type=int, default=10,
+parser.add_argument('--max_var_size', type=int, default=10,
                     help='Maximum length of reference variants to potentially include')
+parser.add_argument('--min_var_size', type=int, default=1,
+                    help='Minimum length of reference variants to potentially include')
 parser.add_argument('--prob', type=float, default=.1,
                     help='Fraction of compatible random variants to include in output VCF')
 args = parser.parse_args()
 
-simulate_ref(args.in_vcf, args.vcf_ref, args.sam, args.ref, args.out_vcf, args.var_size_thresh, args.prob)
+simulate_ref(args.in_vcf, args.vcf_ref, args.sam, args.ref, args.out_vcf, args.min_var_size, args.max_var_size, args.prob)

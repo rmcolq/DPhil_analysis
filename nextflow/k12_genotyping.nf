@@ -14,28 +14,28 @@ params.max_forks = 10
 
 if (params.help){
     log.info"""
-	Pipeline for running pandora and other variant callers and comparing the results.
+    Pipeline for running pandora and other variant callers and comparing the results.
 
-        Usage: nextflow run compare_genotypers.nf <arguments>
-        Required arguments:
-          --truth_assembly	FILE	Assembly true sequence for reads
-          --pangenome_prg	FILE	PRG file to use as input to pandora
-	  --fasta_for_ref	FILE	Fasta of annotated sequences to use as reference paths through PRG
+    Usage: nextflow run compare_genotypers.nf <arguments>
+    Required arguments:
+      --truth_assembly    FILE    Assembly true sequence for reads
+      --pangenome_prg    FILE    PRG file to use as input to pandora
+      --fasta_for_ref    FILE    Fasta of annotated sequences to use as reference paths through PRG
 
-	At least one required:
-	  --nanopore_reads	FILE	Fastaq[gz] file of nanopore reads to make calls from
-	  --illumina_reads_1	FILE	Fastaq[gz] file of illumina reads to make calls from
-	  --illumina_reads_2	FILE	Fastaq[gz] file of illumina reads to make calls from if paired
+    At least one required:
+      --nanopore_reads    FILE    Fastaq[gz] file of nanopore reads to make calls from
+      --illumina_reads_1    FILE    Fastaq[gz] file of illumina reads to make calls from
+      --illumina_reads_2    FILE    Fastaq[gz] file of illumina reads to make calls from if paired
 
-	Optional:
-	  --raw_fast5s		DIR	Directory where raw fast5 nanopore files are (for use by nanopolish)
-	  --albacore_summary	FILE	The sequencing_summary.txt file output by albacore during basecalling (speeds up nanopolish)
-	  --mask		FILE	Mask of regions of truth_assembly to ignore
+    Optional:
+      --raw_fast5s        DIR    Directory where raw fast5 nanopore files are (for use by nanopolish)
+      --albacore_summary    FILE    The sequencing_summary.txt file output by albacore during basecalling (speeds up nanopolish)
+      --mask        FILE    Mask of regions of truth_assembly to ignore
 
-	  --testing
-	  --pipeline_root
-	  --final_outdir
-	  --max_forks
+      --testing
+      --pipeline_root
+      --final_outdir
+      --max_forks
 
     """.stripIndent()
 
@@ -119,7 +119,7 @@ if (!pandora_idx.exists()) {
         memory { 20.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
         maxRetries 3
-	container {
+        container {
           'shub://rmcolq/pandora:pandora'
         }
 
@@ -139,102 +139,104 @@ if (!pandora_idx.exists()) {
 }
 
 process pandora_get_ref_vcf {
-  memory { 40.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  container {
+    memory { 40.GB * task.attempt }
+    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    maxRetries 3
+    container {
       'shub://rmcolq/pandora:pandora'
-  }
+    }
 
-  input:
-  file pangenome_prg
-  file fasta_for_ref
-  file truth_assembly
-  file index from pandora_idx
-  file kmer_prgs from pandora_kmer_prgs
+    input:
+    file pangenome_prg
+    file fasta_for_ref
+    file truth_assembly
+    file index from pandora_idx
+    file kmer_prgs from pandora_kmer_prgs
 
-  output:
-  set file("pandora/pandora_genotyped.vcf"), file("${pangenome_prg}.vcf_ref.fa") into ref_vcf
+    output:
+    set(file("pandora/pandora_genotyped.vcf"), file("${pangenome_prg}.vcf_ref.fa")) into ref_vcf
 
-  """
-  pandora get_vcf_ref ${pangenome_prg} ${fasta_for_ref}
-  pandora map -p ${pangenome_prg} -r ${truth_assembly} --vcf_refs ${pangenome_prg}.vcf_ref.fa.gz --genotype
-  gunzip ${pangenome_prg}.vcf_ref.fa.gz
-  """
+    """
+    pandora get_vcf_ref ${pangenome_prg} ${fasta_for_ref}
+    pandora map -p ${pangenome_prg} -r ${truth_assembly} --vcf_refs ${pangenome_prg}.vcf_ref.fa.gz --genotype
+    gunzip ${pangenome_prg}.vcf_ref.fa.gz
+    """
 }
 
 process simulate_new_ref {
-  memory { 40.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
-  container {
+    memory { 40.GB * task.attempt }
+    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    maxRetries 3
+    container {
       'shub://rmcolq/Singularity:minos'
-  }
+    }
 
-  input:
-  file truth_assembly
-  set file(vcf), file(ref) from ref_vcf
+    input:
+    file truth_assembly
+    set(file(vcf), file(ref)) from ref_vcf
 
-  output:
-  file("simulated_ref.fa") into reference_assemblies_snippy
-  file("simulated_ref.fa") into reference_assemblies_nanopolish
-  set file("simulated_vars.vcf"), file("${ref}") into true_variants
+    output:
+    file("simulated_ref.fa") into reference_assemblies_snippy
+    file("simulated_ref.fa") into reference_assemblies_nanopolish
+    set(file("simulated_vars.vcf"), file("${ref}")) into true_variants
 
-  """
-  v=${truth_assembly}
-  if [ \${v: -3} == ".gz" ]
-  then
-    zcat \$v | awk '{print \$1;}' > \${v::-3}
-    v=\${v::-3}
-  else
-    cat \$v | awk '{print \$1;}' > n.\$v
-    mv n.\$v \$v
-  fi
-  bwa index \$v
-  bwa mem \$v ${ref} > out.sam
-  python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref \$v --sam out.sam --out_vcf simulated_vars.vcf
-  bgzip simulated_vars.vcf
-  tabix -p vcf simulated_vars.vcf.gz
-  cat \$v | vcf-consensus simulated_vars.vcf.gz > simulated_ref.fa
-  """
+    """
+    v=${truth_assembly}
+    if [ \${v: -3} == ".gz" ]
+    then
+      zcat \$v | awk '{print \$1;}' > \${v::-3}
+      v=\${v::-3}
+    else
+      cat \$v | awk '{print \$1;}' > n.\$v
+      mv n.\$v \$v
+    fi
+    bwa index \$v
+    bwa mem \$v ${ref} > out.sam
+    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref \$v --sam out.sam --out_vcf simulated_vars.vcf
+    bcftools sort --max_mem 40G simulated_vars.vcf
+    bgzip simulated_vars.vcf
+    tabix -p vcf simulated_vars.vcf.gz
+    cat \$v | vcf-consensus simulated_vars.vcf.gz > simulated_ref.fa
+    """
 }
 
-if (params.nanopore_reads) {
+
+/*if (params.nanopore_reads) {
     process pandora_genotype_nanopore {
-    	memory { 42.GB * task.attempt }
-    	errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-    	maxRetries 3
-	container {
+        memory { 42.GB * task.attempt }
+        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
+        maxRetries 3
+    container {
           'shub://rmcolq/pandora:pandora'
         }
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: false
 
-    	input:
-    	file nanopore_reads
-    	file pangenome_prg
-    	file pandora_idx
+        input:
+        file nanopore_reads
+        file pangenome_prg
+        file pandora_idx
         file pandora_kmer_prgs
 
-    	output:
-    	set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
+        output:
+        set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
 
-    	"""
-	which pandora
-    	pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --genotype --outdir pandora
-	mv pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
-	gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_full.ref.fa
+        """
+    which pandora
+        pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --genotype --outdir pandora
+    mv pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
+    gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_full.ref.fa
 
-    	"""
+        """
     }
 
     process pandora_genotype_30X_nanopore {
         memory { 42.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
         maxRetries 3
-	container {
-	  'shub://rmcolq/pandora:pandora'
-	}	
+    container {
+      'shub://rmcolq/pandora:pandora'
+    }    
 
         publishDir final_outdir, mode: 'copy', overwrite: false
 
@@ -245,10 +247,10 @@ if (params.nanopore_reads) {
         file pandora_kmer_prgs
 
         output:
-	set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
+    set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
 
         """
-	which pandora
+    which pandora
         pandora map -p ${pangenome_prg} -r ${nanopore_reads} -w 14 -k 15 --genotype --max_covg 30 --outdir pandora
         mv pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
         gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_30X.ref.fa
@@ -256,7 +258,7 @@ if (params.nanopore_reads) {
     }
 
     process nanopolish_index {
-	container {
+    container {
           'shub://rmcolq/Singularity_recipes:nanopolish'
         }
         input:
@@ -265,7 +267,7 @@ if (params.nanopore_reads) {
         file albacore_summary
 
         output:
-        set file("${nanopore_reads}.index*") into nanopolish_index
+        set(file("${nanopore_reads}.index*")) into nanopolish_index
 
         """
         nanopolish index -d ${raw_fast5s} -s ${albacore_summary} ${nanopore_reads}
@@ -281,59 +283,59 @@ if (params.nanopore_reads) {
           'shub://rmcolq/Singularity_recipes:nanopolish'
         }
         cpus 16
-	maxForks 5
+    maxForks 5
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: false
         
         input:
         file nanopore_reads 
-	file reference_assembly from reference_assemblies_nanopolish
+    file reference_assembly from reference_assemblies_nanopolish
         file nanopolish_index
         file raw_fast5s
         
         output:
-	set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
+    set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
         
-	"""
+    """
         minimap2 -ax map-ont -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
         samtools index reads.sorted.bam
-	mkdir -p nanopolish.results/vcf
+    mkdir -p nanopolish.results/vcf
         python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
-	nanopolish variants \
-	  -t 8 \
-	  -w {1} \
-	  --reads ${nanopore_reads} \
-	  --bam reads.sorted.bam \
+    nanopolish variants \
+      -t 8 \
+      -w {1} \
+      --reads ${nanopore_reads} \
+      --bam reads.sorted.bam \
           --genome ${reference_assembly} \
-	  -o nanopolish.results/vcf/nanopolish.{1}.vcf \
-	  -q dam,dcm \
+      -o nanopolish.results/vcf/nanopolish.{1}.vcf \
+      -q dam,dcm \
           --ploidy 1
 
-	v=\$(head -n1 ${reference_assembly})
+    v=\$(head -n1 ${reference_assembly})
         ref_id=\${v:1:\${#v}}
 
-	cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_\$ref_id.vcf
-	for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
-	do
-	cat \$f | grep -v "#" >> nanopolish_\$ref_id.vcf
-	done
-	cp ${reference_assembly} nanopolish_\$ref_id.ref.fa
+    cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_\$ref_id.vcf
+    for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
+    do
+    cat \$f | grep -v "#" >> nanopolish_\$ref_id.vcf
+    done
+    cp ${reference_assembly} nanopolish_\$ref_id.ref.fa
         """
     }
 }
 
 if (params.illumina_reads_1 && params.illumina_reads_2) {
     process combine_illumina_reads {
-	input:
+    input:
         file illumina_reads_1
         file illumina_reads_2
         
-	output:
-	file ${illumina_reads_1} into illumina_reads
-	
-	"""
-	cat ${illumina_reads_2} >> ${illumina_reads_1}
-	"""
+    output:
+    file ${illumina_reads_1} into illumina_reads
+    
+    """
+    cat ${illumina_reads_2} >> ${illumina_reads_1}
+    """
     }
 
     process snippy_genotype_pe_illumina {
@@ -343,10 +345,10 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-	cpus 8
+    cpus 8
         maxForks 5
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: false
 
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -359,10 +361,10 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
         """
         snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2}
 
-	v=\$(head -n1 ${reference_assembly})
-	ref_id=\${v:1:\${#v}}
+    v=\$(head -n1 ${reference_assembly})
+    ref_id=\${v:1:\${#v}}
         cp snippy_outdir/snps.filt.vcf snippy_\$ref_id.vcf
-	cp ${reference_assembly} snippy_\$ref_id.ref.fa
+    cp ${reference_assembly} snippy_\$ref_id.ref.fa
         """
     }
 }
@@ -376,9 +378,9 @@ else if (params.illumina_reads_1) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-	cpus 8
+    cpus 8
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: false
         
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -387,10 +389,10 @@ else if (params.illumina_reads_1) {
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
         
-	"""
+    """
         snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --se ${illumina_reads_1}
 
-	v=\$(head -n1 ${reference_assembly})
+    v=\$(head -n1 ${reference_assembly})
         ref_id=\${v:1:\${#v}}
         cp snippy_outdir/snps.filt.vcf snippy_\$ref_id.vcf
         cp ${reference_assembly} snippy_\$ref_id.ref.fa
@@ -403,25 +405,25 @@ if (params.illumina_reads_1) {
         memory { 64.GB * task.attempt }
         errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
         maxRetries 2
-	container {
+    container {
           'shub://rmcolq/pandora:pandora'
         }
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: false
 
         input:
         file illumina_reads
         file pangenome_prg
         file pandora_idx
-	file pandora_kmer_prgs
+    file pandora_kmer_prgs
 
         output:
-	set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
+    set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
 
         """
-	
+    
         pandora map -p ${pangenome_prg} -r ${illumina_reads} -w 14 -k 15 --genotype --illumina --outdir pandora
-	mv pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
+    mv pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         gunzip -c pandora/pandora.consensus.fq.gz | awk '{if(NR%4==1) {printf(">%s\n",substr($0,2));} else if(NR%4==2) print;}' > pandora_genotyped_illumina.ref.fa
         """
     }
@@ -451,8 +453,8 @@ if (params.mask) {
         publishDir final_outdir, mode: 'copy', overwrite: false
 
         input:
-        set file(truth_vcf), file(truth_vcf_ref) from true_variants
-        set file(vcf), file(vcf_ref) from all_vcfs
+        set(file(truth_vcf), file(truth_vcf_ref)) from true_variants
+        set(file(vcf), file(vcf_ref)) from all_vcfs
         file mask
 
         output:
@@ -475,8 +477,8 @@ else {
         publishDir final_outdir, mode: 'copy', overwrite: false
     
         input:
-        set file(truth_vcf), file(truth_vcf_ref) from true_variants
-        set file(vcf), file(vcf_ref) from all_vcfs
+        set(file(truth_vcf), file(truth_vcf_ref)) from true_variants
+        set(file(vcf), file(vcf_ref)) from all_vcfs
               
         output:
         file('*.png') into output_graphs
@@ -486,4 +488,4 @@ else {
         """
     }   
 }       
-
+*/

@@ -121,7 +121,7 @@ process pandora_map_nano {
 } 
 
 process pandora_map_illumina {
-  memory { 40.GB * task.attempt }
+  memory { 55.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -180,6 +180,7 @@ process make_plot {
   
   output:
   file("${type}.sam_mismatch_counts.png") into output_plot
+  file ("${type}_list.txt") into count_list
 
   """
   #!/usr/bin/env python3
@@ -200,18 +201,32 @@ process make_plot {
       num_mismatches = []
     
       f = open(sam_file, 'r')
+      all_names = []
+      non_unique_names = []
       for line in f:
-          if line != "" and line[0].isalpha() and (line.split('\t')[1]=="0" or line.split('\t')[1]=="16"):
+          if line != "" and line[0].isalpha():
+              name = line.split('\t')[0]
+              if name in all_names:
+                  non_unique_names.append(name)
+              else:
+                  all_names.append(name)
+      f.close()
+   
+      f = open(sam_file, 'r')
+      for line in f:
+          if line == "" or not line[0].isalpha() or line.split('\t')[0] in non_unique_names:
+              continue
+          elif line.split('\t')[1]=="0" or line.split('\t')[1]=="16":
               num = int(line.split('\t')[11].split("NM:i:")[-1])
               num_mismatches.append(num)
               total_mismatch_bases += num
               total_gene_bases += len(line.split('\t')[9])
               num_genes += 1
-          elif line != "" and line[0].isalpha() and line.split('\t')[1]!="4":
+          elif line.split('\t')[1]!="4":
               num_false_positives += 1
-              num_genes += 1
-              
+              num_genes += 1              
       f.close()
+
       if total_gene_bases == 0:
           total_gene_bases = 1
       print("False positive gene rate: %d/%d = %f" %(num_false_positives, num_genes, float(num_false_positives)/num_genes*100))
@@ -220,9 +235,66 @@ process make_plot {
       plt.rcParams['figure.figsize'] = 10,6
       fig, ax = plt.subplots()
       sns.distplot(num_mismatches, bins=range(0, max(num_mismatches)+2, 1), kde=False)
-      ax.set(title="Distribution of Number of Mismatch Bases in Consensus", xlabel='Number of mismatch bases', ylabel='Frequency')
+      ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
+      plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+      plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
       plt.savefig('%s.sam_mismatch_counts.png' %type, transparent=True)
     
+      with open('%s_list.txt' %type, 'w') as f:
+          f.write("%s\t" % type)
+          for item in num_mismatches:
+              f.write("%s," % item)
+    
   plot_sam_dist("${samfile}", "${type}")
+  """
+}
+
+process make_joint_plot {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: false
+
+  input:
+  file count_files from count_list.collect()
+
+  output:
+  file("joint.sam_mismatch_counts.png") into output_joint_plot
+
+  """
+#!/usr/bin/env python3
+
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+
+count_dict = {}
+for file in "${count_files}".split():
+    with open(file, 'r') as f:
+        line = f.readline()
+        type = line.split('\t')[0]
+        counts = line.split('\t')[1].split(',')
+        print(len(counts), counts[-10:])
+        icounts = [int(i) for i in counts if len(i) > 0]
+        print(len(icounts), icounts[-10:])
+        count_dict[type] = icounts
+  
+plt.rcParams['figure.figsize'] = 10,6
+fig, ax = plt.subplots()
+plt.style.use('seaborn-deep')
+ax.hist([count_dict["Illumina"], count_dict["Nanopore"]],
+      density=True,
+      label=["Illumina", "Nanopore"],
+      align="mid",
+      bins=range(0, 42, 1))
+
+plt.legend()
+ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
+#plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+#plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+plt.savefig('joint.sam_mismatch_counts.png', transparent=True)
+
   """
 }
