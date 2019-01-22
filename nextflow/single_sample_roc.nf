@@ -3,9 +3,10 @@ params.vcf_directory = ""
 
 params.help = false
 params.testing = false
-params.pipeline_root = ""
+params.pipeline_root = "/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis"
 params.final_outdir = "."
 params.max_forks = 10
+params.snps = false
 
 if (params.help){
     log.info"""
@@ -18,6 +19,7 @@ if (params.help){
 
 	Optional arguments:
 	  --mask		FILE	BED file of regions to mask out of analyses
+	  --snps		FLAG    Restrict to SNPs?
 	  --testing
 	  --pipeline_root
 	  --final_outdir
@@ -53,6 +55,47 @@ if (params.mask) {
 vcfs_to_check = Channel.fromFilePairs("${params.vcf_directory}/*.{vcf,ref.fa}", flat:true)
 pandora_consensus = Channel.fromPath("${params.vcf_directory}/pandora*consensus*")
 
+if (params.snps) {
+    process filter_vcfs {
+        memory { 1.GB * task.attempt }
+        errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+        maxRetries 2
+        container {
+            'shub://rmcolq/Singularity_recipes:minos'
+        }
+    
+        input:
+        set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
+
+        output:
+        set (val("${name}"), file("${vcf_reference}"), file("*.filtered.vcf")) into filtered_vcfs
+
+        """
+        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 41 --snps
+        """
+    }
+} 
+else {
+    process filter_vcfs {
+        memory { 1.GB * task.attempt }
+        errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+        maxRetries 2
+        container {
+            'shub://rmcolq/Singularity_recipes:minos'
+        }
+            
+        input:
+        set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
+        
+        output:
+        set (val("${name}"), file("${vcf_reference}"), file("*.filtered.vcf")) into filtered_vcfs
+        
+        """
+        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 41
+        """
+    }
+}
+
 if (params.mask) {
     process check_vcf {
         memory { 1.GB * task.attempt }
@@ -63,7 +106,7 @@ if (params.mask) {
         }
 
         input:
-        set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
+        set(val(name), file(vcf_reference), file(vcf)) from filtered_vcfs
         file truth_assembly
         file mask
 
@@ -96,7 +139,7 @@ process check_vcf {
           'shub://rmcolq/Singularity_recipes:minos'
         } 
     input:
-    set(val(name), file(vcf_reference), file(vcf)) from vcfs_to_check
+    set(val(name), file(vcf_reference), file(vcf)) from filtered_vcfs
     file truth_assembly
     file mask
     
@@ -155,14 +198,22 @@ process minos_to_df {
     conf_threshold = 0
     c = list(tp['GT_CONF'].values) + list(fp['GT_CONF'].values)
     c.sort()
+    old_total = stats['total'].values[0] - stats['gt_excluded'].values[0]
+    total_tp = sum(tp['Count'])
+    total_fp = sum(fp['Count'])
+    total = total_tp + total_fp
+    print(old_total, total, total_tp, total_fp)
     for confidence in c:
-        if sum(tp[tp['GT_CONF'] >= confidence]['Count'])+sum(fp[fp['GT_CONF'] >= confidence]['Count']) > 0.2*float(stats['total'].values[0]):
-            precision.append(sum(tp[tp['GT_CONF'] >= confidence]['Count'])/float(sum(tp[tp['GT_CONF'] >= confidence]['Count'])+sum(fp[fp['GT_CONF'] >= confidence]['Count'])))
-            recall.append(sum(tp[tp['GT_CONF'] >= confidence]['Count'])/float(stats['total'].values[0]))
-            yscat.append(float(sum(tp[tp['GT_CONF'] >= confidence]['Count'])+sum(fp[fp['GT_CONF'] >= confidence]['Count']))/float(stats['total'].values[0]))
-            xscat.append(sum(fp[fp['GT_CONF'] >= confidence]['Count'])/float(sum(tp[tp['GT_CONF'] >= confidence]['Count'])+sum(fp[fp['GT_CONF'] >= confidence]['Count'])))
-            sensitivity.append(sum(tp[tp['GT_CONF'] >= confidence]['Count'])/float(sum(tp[tp['GT_CONF'] >= confidence]['Count'])+sum(tp[tp['GT_CONF'] < confidence]['Count'])))
-            specificity_p.append(sum(fp[fp['GT_CONF'] >= confidence]['Count'])/float(sum(fp[fp['GT_CONF'] >= confidence]['Count'])+sum(fp[fp['GT_CONF'] < confidence]['Count'])))
+        num_tp = sum(tp[tp['GT_CONF'] >= confidence]['Count'])
+        num_fp = sum(fp[fp['GT_CONF'] >= confidence]['Count'])
+        genotyped = num_tp + num_fp
+        if genotyped > 0.2*total:
+            precision.append(num_tp/float(genotyped))
+            recall.append(num_tp/float(total))
+            yscat.append(genotyped/float(total))
+            xscat.append(num_fp/float(genotyped))
+            sensitivity.append(num_tp/float(stats['gt_correct'].values[0]))
+            specificity_p.append(num_fp/float(stats['gt_wrong'].values[0]))
             if recall[-1] < 0.8 and conf_threshold == 0:
                 conf_threshold = confidence
 
@@ -174,6 +225,7 @@ process minos_to_df {
     df['sensitivity'] = sensitivity
     df['specificity_p'] = specificity_p
     df['name'] = "${name}"
+    df.to_csv("df.tsv", sep='\t')
     pk.dump(df, open('sample.pkl', 'wb'))
     print(conf_threshold)
     """

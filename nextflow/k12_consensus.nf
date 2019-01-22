@@ -6,6 +6,7 @@ params.reference_assembly = ""
 params.help = false
 params.final_outdir = "."
 params.max_forks = 100
+params.pipeline_root = "/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis"
 
 if (params.help){
     log.info"""
@@ -144,7 +145,11 @@ process pandora_map_illumina {
 
 pandora_output_nano.concat( pandora_output_illumina ).set { pandora_output }
 
-process compare_output_to_input {
+pandora_output1 = Channel.create()
+pandora_output2 = Channel.create()
+pandora_output.separate( pandora_output1, pandora_output2 ) { a -> [a, a] }
+
+process compare_output_to_input_with_flanks {
   memory { 0.01.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
@@ -154,17 +159,43 @@ process compare_output_to_input {
   }
 
   input:
-  set file(out_path), val(type) from pandora_output
+  set file(out_path), val(type) from pandora_output1
   file(reference) from reference_assembly
 
   output:
-  set file("out.sam"), val(type) into output_sam
+  set file("out.sam"), val(type) into output_sam_with_flanks
 
   """
   bwa index ${reference}
   bwa mem ${reference} ${out_path} > out.sam
   """
 }
+
+process compare_output_to_input_without_flanks {
+  memory { 0.01.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+  maxForks params.max_forks
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+
+  input:
+  set file(out_path), val(type) from pandora_output2
+  file(reference) from reference_assembly
+
+  output:
+  set file("out.sam"), val(type) into output_sam_without_flanks
+
+  """
+  bwa index ${reference}
+  gunzip ${out_path}
+  python3 ${params.pipeline_root}/scripts/remove_flanks.py --in_fq \${${out_path}::-3} --out_fa "out.fa" --flank_size 28
+  bwa mem ${reference} out.fa > out.sam
+  """
+}
+
+output_sam_with_flanks.concat( output_sam_without_flanks ).set { output_sam }
 
 process make_plot {
   memory { 0.1.GB * task.attempt } 

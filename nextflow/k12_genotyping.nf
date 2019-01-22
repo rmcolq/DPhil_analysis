@@ -168,7 +168,7 @@ process simulate_new_ref {
     errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
     maxRetries 3
     container {
-      'shub://rmcolq/Singularity:minos'
+      'shub://rmcolq/Singularity_recipes:minos'
     }
 
     input:

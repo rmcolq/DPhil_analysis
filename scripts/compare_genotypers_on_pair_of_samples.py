@@ -37,25 +37,44 @@ def syscall(command, allow_fail=False):
     print(completed_process.stdout)
     return completed_process
 
-def get_vcf_vcfref_pairs(directory):
+def run_dnadiff(ref, query):
+    '''Runs dnadiff to map ref fasta to query fasta and create a SNPs file of differences.'''
+    dnadiff_binary = find_binary('dnadiff')
+    command = ' '.join([dnadiff_binary, ref, query, '-p', 'tmp.dnadiff'])
+    syscall(command)
+    files = glob.iglob('tmp.dnadiff*')
+    for f in files:
+        if not f.endswith('.snps'):
+            os.unlink(f)
+
+def get_vcf_pairs(dir1, dir2):
     '''Compares strings to find pairs of VCF files called against the same VCF reference'''
-    paths = glob.glob(directory + '/*.ref.fa')
-    refs = [f.split("/")[-1] for f in paths]
+    paths = glob.glob(dir1 + '/*.ref.fa')
+    refs1 = [f.split("/")[-1] for f in paths]
+
+    paths = glob.glob(dir2 + '/*.ref.fa')
+    refs2 = [f.split("/")[-1] for f in paths]
+
+    intersect_refs = set(refs1).intersection(refs2)
 
     results = []
-    for r in refs:
+    for r in intersect_refs:
         name = r[:-7]
-        vcf_ref = "/".join([directory, r])
-        vcf = "/".join([directory, name + ".vcf"])
-        results.append([name, vcf_ref, vcf])
+        vcf_ref = "/".join([dir1, r])
+        vcf = name + ".vcf" 
+        vcf1 = "/".join([dir1, vcf])
+        vcf2 = "/".join([dir2, vcf])
+        results.append([name, vcf_ref, vcf1, vcf2])
     return results
 
-def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name, flank, mask):
-    '''Runs minos command to evaluate how many variants from truth vcf are called in query vcf'''
+def run_compare(snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mask1, mask2):
+    '''Runs minos command to compare pair of VCFs to dnadiff snps file'''
     minos_binary = find_binary('minos')
-    command = ' '.join([minos_binary, 'check_recall', truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches"])
-    if mask:
-        command += " --exclude_bed " + mask
+    command = ' '.join([minos_binary, 'check_snps', snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, "tmp.compare." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches"])
+    if mask1:
+        command += " --exclude_bed1 " + mask1
+    if mask2:
+        command += " --exclude_bed2 " + mask2
     syscall(command)
 
 def index_ref(ref):
@@ -97,54 +116,51 @@ def filter_vcf_by_ref_pos(in_vcf, ref_fasta, flank_size):
     out_vcf_bad.close()
     out_vcf_good.close()
 
-def restrict_to_snps(in_vcf):
-    vcf_reader = vcf.Reader(open(in_vcf, 'r'))
-    out_vcf = vcf.Writer(open(in_vcf.replace(".vcf",".snps.vcf"),'w'), vcf_reader)
-
-    for record in vcf_reader:
-        if len(record.REF) > 1:
-            continue
-        for alt in record.ALT: 
-            if len(alt) > 1:
-                continue
-        out_vcf.write_record(record)
-
-def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
+def run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mask1, mask2):
     '''Runs minos command to check each VCF with truth'''
     minos_binary = find_binary('minos')
-    index_ref(truth)
-    filter_vcf_by_ref_pos(vcf, vcf_ref, flank)
-    filtered_vcf = vcf.replace(".vcf",".good.vcf")
-    if snps:
-        restrict_to_snps(filtered_vcf)
-        filtered_vcf = filtered_vcf.replace(".vcf",".snps.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(15)])
-    if mask:
-        command += " --exclude_bed " + mask
+    index_ref(truth1)
+    filter_vcf_by_ref_pos(vcf1, vcf_ref, flank)
+    filtered_vcf1 = vcf1.replace(".vcf",".good.vcf")
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf1, vcf_ref, truth1, "tmp.individual." + name + ".1", "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(15)])
+    if mask1:
+        command += " --exclude_bed " + mask1
+    syscall(command)
+    index_ref(truth2)
+    filter_vcf_by_ref_pos(vcf2, vcf_ref, flank)
+    filtered_vcf2 = vcf2.replace(".vcf",".good.vcf")
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf2, vcf_ref, truth2, "tmp.individual." + name + ".2", "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(15)])
+    if mask2:
+        command += " --exclude_bed " + mask2
     syscall(command)
 
 def minos_to_df(name):
-    y_gt = pd.read_table("tmp.recall." + name + ".gt_conf_hist.tsv")
-    y_stats = pd.read_table("tmp.recall." + name + ".stats.tsv")
+    y_gt = pd.read_table("tmp.compare." + name + ".gt_conf_hist.tsv")
+    y_stats = pd.read_table("tmp.compare." + name + ".stats.tsv")
 
-    x_tp = pd.read_table("tmp.precision." + name + '.gt_conf_hist.TP.tsv')
-    x_fp = pd.read_table("tmp.precision." + name + '.gt_conf_hist.FP.tsv')
-    x_stats = pd.read_table("tmp.precision." + name + '.stats.tsv')
+    x_tp1 = pd.read_table("tmp.individual." + name + '.1.gt_conf_hist.TP.tsv')
+    x_fp1 = pd.read_table("tmp.individual." + name + '.1.gt_conf_hist.FP.tsv')
+    x_stats1 = pd.read_table("tmp.individual." + name + '.1.stats.tsv')
+
+    x_tp2 = pd.read_table("tmp.individual." + name + '.2.gt_conf_hist.TP.tsv')
+    x_fp2 = pd.read_table("tmp.individual." + name + '.2.gt_conf_hist.FP.tsv')
+    x_stats2 = pd.read_table("tmp.individual." + name + '.2.stats.tsv')
 
     yscat = []
     xscat = []
 
     conf_threshold = 0
-    c_values = list(y_gt['GT_CONF'].values) + list(x_tp['GT_CONF'].values) + list(x_fp['GT_CONF'].values)
+    c_values = list(y_gt['GT_CONF'].values) + list(x_tp1['GT_CONF'].values) + list(x_fp1['GT_CONF'].values) + list(x_tp2['GT_CONF'].values) + list(x_fp2['GT_CONF'].values)
     c_values.sort()
 
+    ytotal = y_stats['total'].values[0] - y_stats['excluded_vars'].values[0]
     for confidence in c_values:
-        dnadiff_frac = float(sum(y_gt[y_gt['GT_CONF'] >= confidence]['Count']))/float(y_stats['total'].values[0] - y_stats['excluded_vars'].values[0])
+        dnadiff_frac = float(sum(y_gt[y_gt['GT_CONF'] >= confidence]['Count']))/float(ytotal)
         if dnadiff_frac < 0.1:
             continue
         yscat.append(dnadiff_frac)
-        sum_fp = sum(x_fp[x_fp1['GT_CONF'] >= confidence]['Count'])
-        sum_tp = sum(x_tp[x_tp1['GT_CONF'] >= confidence]['Count'])
+        sum_fp = sum(x_fp1[x_fp1['GT_CONF'] >= confidence]['Count'])+ sum(x_fp2[x_fp2['GT_CONF'] >= confidence]['Count'])
+        sum_tp = sum(x_tp1[x_tp1['GT_CONF'] >= confidence]['Count'])+ sum(x_tp2[x_tp2['GT_CONF'] >= confidence]['Count'])
         if sum_fp > 0 and sum_tp > 0:
             xscat.append(sum_fp/float(sum_fp + sum_tp))
         else:
@@ -184,7 +200,7 @@ def plot_graphs(items):
         for x in items:
             print("add df to graph")
             if len(x['name'].values) > 0:
-                if x['name'].values[0].startswith("pandora_genotyped_full") or x['name'].values[0].startswith("pandora_recall"):
+                if x['name'].values[0].startswith("pandora_genotyped_full") or x['name'].values[0].startswith("pandora_compare"):
                     col = colormap_pandora(0)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                 elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 0:
@@ -215,39 +231,47 @@ def plot_graphs(items):
 
 
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
-parser.add_argument('--truth_vcf', type=str,
-                    help='VCF of calls to verify')
-parser.add_argument('--truth_vcf_ref', type=str,
-                    help='Reference FASTA for truth VCF')
-parser.add_argument('--mask', type=str, default="",
-                    help='BED file of regions of truth reference which are untrustworthy')
-parser.add_argument('--sample_dir', type=str,
-                    help='Directory of VCF, VCF_ref pairs for generated')
+parser.add_argument('--truth1', '-t1', type=str,
+                    help='FASTA of truth assembly for sample1')
+parser.add_argument('--truth2', '-t2', type=str,
+                    help='FASTA of truth assembly for sample2')
+parser.add_argument('--mask1', '-m1', type=str, default="",
+                    help='BED of untrustworthy regions for truth assembly for sample1')
+parser.add_argument('--mask2', '-m2', type=str, default="",
+                    help='BED of untrustworthy regions for truth assembly for sample2')
+parser.add_argument('--sample_dir1', '-d1', type=str,
+                    help='Directory of VCF, VCF_ref pairs for sample1')
+parser.add_argument('--sample_dir2', '-d2', type=str,
+                    help='Directory of VCF, VCF_ref pairs for sample2')
 parser.add_argument('--flank', '-f', type=int, default=5,
-                    help='Size of flank sequence to use when comparing true alleles to vcf alleles')
-parser.add_argument('--snps', action='store_true',
-                    help='Only evaluates SNP VCF records')
+                    help='Size of flank sequence to use when comparing dnadiff alleles to vcf alleles')
 args = parser.parse_args()
 
-truth_vcf_ref = args.truth_vcf_ref
-if truth_vcf_ref.endswith(".gz"):
-    command = ' '.join(['zcat', truth_vcf_ref, '> truth.fa'])
+truth1 = args.truth1
+if truth1.endswith(".gz"):
+    command = ' '.join(['zcat', truth1, '> truth1.fa'])
     syscall(command)
-    truth_vcf_ref = "truth.fa"
+    truth1 = "truth1.fa"
+truth2 = args.truth2
+if truth2.endswith(".gz"):
+    command = ' '.join(['zcat', truth2, '> truth2.fa'])
+    syscall(command)
+    truth2 = "truth2.fa"
 
-pairs = get_vcf_vcfref_pairs(args.sample_dir)
+run_dnadiff(truth1, truth2)
+pairs = get_vcf_pairs(args.sample_dir1, args.sample_dir2)
 dfs = []
 for run in pairs:
-    name, vcf_ref, vcf = run
+    name, vcf_ref, vcf1, vcf2 = run
     print(name)
     if len(glob.glob(name + ".pkl")) == 0:
-        run_evaluate_recall(truth_vcf, truth_vcf_ref, vcf, vcf_ref, name, args.flank, args.mask)
-        run_evaluate_precision(truth, vcf, vcf_ref, name, 5*args.flank, args.mask, args.snps)
+        run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, name, args.flank, args.mask1, args.mask2)
+        run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, 5*args.flank, args.mask1, args.mask2)
         dfs.append(minos_to_df(name))
-        #files = glob.glob("tmp.precision*")
+        #files = glob.glob("tmp.individual*")
         #for f in files:
         #    os.unlink(f)
-        #files = glob.glob("tmp.recall*")
+        #files = glob.glob("tmp.compare*")
         #for f in files:
         #    os.unlink(f)
 print("plot graphs")
@@ -257,7 +281,12 @@ plot_graphs(dfs)
 #for f in files:
 #    os.unlink(f)
     
-files = glob.glob(truth + ".*")
+files = glob.glob(truth1 + ".*")
 for f in files:
     os.unlink(f)
+
+files = glob.glob(truth2 + ".*")
+for f in files:
+    os.unlink(f)
+
 
