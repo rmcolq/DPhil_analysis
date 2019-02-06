@@ -14,7 +14,7 @@ def rev_comp(s):
 
 def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_var_size, p):
     vcf_reader = vcf.Reader(open(vcf_file, 'r'))
-    vcf_writer = vcf.Writer(open(out_vcf, 'w'), vcf_reader)
+    vcf_writer = vcf.Writer(open("tmp." + out_vcf, 'w'), vcf_reader)
     record_dict = SeqIO.to_dict(SeqIO.parse(vcf_ref, "fasta"))
     truth_dict = SeqIO.to_dict(SeqIO.parse(truth, "fasta"))
     
@@ -45,24 +45,26 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_
                     truth_pos = s.reference_start
                     truth_seq = str(truth_dict[record.CHROM].seq)
                     if orientation == False:
-                        truth_local_seq = truth_seq[truth_pos+record.POS-1:truth_pos+record.POS+len(record.REF)-1]
-                        record.POS = truth_pos+record.POS-1
+                        record.POS = truth_pos+record.POS
+                        truth_local_seq = truth_seq[record.POS-1:record.POS+len(record.REF)-1]
                         rand_alt = np.random.randint(len(record.ALT))
                         record.ALT = [record.ALT[int(rand_alt)]]
                     else:
                         match_length = s.infer_query_length()
                         truth_local_seq = rev_comp(truth_seq[truth_pos+match_length-record.POS-len(record.REF)+1:truth_pos+match_length-record.POS+1])
                         record.POS = truth_pos+match_length-record.POS-len(record.REF)+1
+                        truth_local_seq = rev_comp(truth_seq[record.POS-1:record.POS+len(record.REF)-1])
                         rand_alt = np.random.randint(len(record.ALT))
                         alt = str(record.ALT[int(rand_alt)])
                         record.ALT[0] = rev_comp(alt)
                         record.ALT = record.ALT[:1]
                         record.REF = rev_comp(record.REF)
-                    if(truth_local_seq == ref_seq and min_var_size <= len(record.ALT[0]) <= max_var_size):
+                    check_seq = truth_seq[record.POS-1:record.POS+len(record.REF)-1]
+                    if(truth_local_seq == ref_seq and check_seq == record.REF and min_var_size <= len(record.ALT[0]) <= max_var_size):
                         vcf_writer.write_record(record)
                         last_record = record_copy
                         break
-        
+
 parser = argparse.ArgumentParser(description='Takes a VCF and the VCF reference sequences and randomly selects some. Using a SAM file mapping sequences in the VCF reference to a reference assembly, writes this subset of variants with respect to the reference assembly')
 parser.add_argument('--in_vcf', type=str,
                     help='Input VCF')

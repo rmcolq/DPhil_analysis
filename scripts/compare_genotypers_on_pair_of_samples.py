@@ -87,7 +87,7 @@ def filter_vcf_by_ref_pos(in_vcf, ref_fasta, flank_size):
     out_vcf_good = vcf.Writer(open(in_vcf.replace(".vcf",".good.vcf"),'w'), vcf_reader)
     out_vcf_bad = vcf.Writer(open(in_vcf.replace(".vcf",".bad.vcf"),'w'), vcf_reader)
 
-    if ref_fasta[:-3] == ".gz":
+    if ref_fasta[-3:] == ".gz":
         with gzip.open(ref_fasta, 'rt') as input_handle:
             vcf_ref = SeqIO.to_dict(SeqIO.parse(input_handle, "fasta"))
 
@@ -156,13 +156,15 @@ def minos_to_df(name):
     ytotal = y_stats['total'].values[0] - y_stats['excluded_vars'].values[0]
     for confidence in c_values:
         dnadiff_frac = float(sum(y_gt[y_gt['GT_CONF'] >= confidence]['Count']))/float(ytotal)
-        if dnadiff_frac < 0.1:
+        if dnadiff_frac < 0.1 or confidence == 0:
             continue
         yscat.append(dnadiff_frac)
         sum_fp = sum(x_fp1[x_fp1['GT_CONF'] >= confidence]['Count'])+ sum(x_fp2[x_fp2['GT_CONF'] >= confidence]['Count'])
         sum_tp = sum(x_tp1[x_tp1['GT_CONF'] >= confidence]['Count'])+ sum(x_tp2[x_tp2['GT_CONF'] >= confidence]['Count'])
         if sum_fp > 0 and sum_tp > 0:
             xscat.append(sum_fp/float(sum_fp + sum_tp))
+            if len(yscat) > 2 and (yscat[-1] < 0.6 < yscat[-2] or yscat[-2] < 0.6 < yscat[-1]):
+                print(name, xscat[-1], yscat[-1])
         else:
             xscat.append(float(0))
 
@@ -171,7 +173,8 @@ def minos_to_df(name):
     df['xscat'] = xscat
     df['name'] = name
     pk.dump(df, open(name + '.pkl', 'wb'))
-    print(df)
+    print("Max", name, max(yscat))
+    #print(df)
     return df
 
 def plot_graphs(items):
@@ -188,6 +191,7 @@ def plot_graphs(items):
         ax.set_xlabel('Number FPs/Number Genotyped', size=26)
         ax.set_ylabel('Fraction of dnadiff SNPs discoverable from VCFs', size=26)
         # ax.set_title('Precision Recall', size = 30)
+        plt.xlim(-0.005, 0.02)
 
         # Set colormaps
         colormap_pandora = plt.cm.autumn
@@ -243,8 +247,10 @@ parser.add_argument('--sample_dir1', '-d1', type=str,
                     help='Directory of VCF, VCF_ref pairs for sample1')
 parser.add_argument('--sample_dir2', '-d2', type=str,
                     help='Directory of VCF, VCF_ref pairs for sample2')
-parser.add_argument('--flank', '-f', type=int, default=5,
-                    help='Size of flank sequence to use when comparing dnadiff alleles to vcf alleles')
+parser.add_argument('--recall_flank', '-fr', type=int, default=10,
+                    help='Size of flank sequence to use when comparing true alleles to vcf alleles')
+parser.add_argument('--precision_flank', '-fp', type=int, default=31,
+                    help='Size of flank sequence to use when comparing alleles to truth assembly')
 args = parser.parse_args()
 
 truth1 = args.truth1
@@ -265,8 +271,8 @@ for run in pairs:
     name, vcf_ref, vcf1, vcf2 = run
     print(name)
     if len(glob.glob(name + ".pkl")) == 0:
-        run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, name, args.flank, args.mask1, args.mask2)
-        run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, 5*args.flank, args.mask1, args.mask2)
+        run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, name, args.recall_flank, args.mask1, args.mask2)
+        run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, args.precision_flank, args.mask1, args.mask2)
         dfs.append(minos_to_df(name))
         #files = glob.glob("tmp.individual*")
         #for f in files:

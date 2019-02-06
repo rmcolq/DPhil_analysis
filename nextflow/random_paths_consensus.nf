@@ -68,6 +68,7 @@ process simulate_nanopore_reads {
   errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks 8
+  time '20m'
   container {
       'shub://rmcolq/Singularity_recipes:nanosimh'
   }
@@ -76,16 +77,29 @@ process simulate_nanopore_reads {
   file(path_fasta) from path_nano
 
   output:
-  set(file("${path_fasta}"),file("simulated.fa")) into sim_reads_nano
+  set(file("${path_fasta}"),file("filtered_simulated.fa")) into sim_reads_nano
 
   """
-  nanosim-h -p ecoli_R9_2D -n 100 ${path_fasta}
+  head -n1 ${path_fasta} > random_path.fa
+  for i in {1..250}
+  do
+  echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >> random_path.fa
+  done
+  head -n2 ${path_fasta} | tail -n1 >> random_path.fa
+  for i in {1..250}
+  do
+  echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >> random_path.fa
+  done
+  nanosim-h -p ecoli_R9_2D -n 500 random_path.fa --unalign-rate 0 --max-len 10000
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
   rm simulated.fa
   exit 1
   fi 
+  minimap2 ${path_fasta} simulated.fa > out.mmp
+  less out.mmp | cut -f1 > list_ids
+  grep -A1 -f list_ids simulated.fa | grep -v \"\\-\\-\" > filtered_simulated.fa
   """
 }
 
@@ -142,8 +156,8 @@ if (!pandora_idx.exists()) {
 }
 
 process pandora_map_path_nano {
-  memory { 10.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  memory { 3.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks params.max_forks
   container {
@@ -160,13 +174,18 @@ process pandora_map_path_nano {
   set file("pandora/pandora.consensus.fq.gz"), file("${path}") into pandora_output_path_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --genome_size 1000
+  pandora map -p ${prg} -r ${reads} --genome_size 1000 --max_covg 25000
+  if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
+  echo "pandora/pandora.consensus.fq.gz exists"
+  else
+  exit 1
+  fi
   """
 } 
 
 process pandora_map_path_illumina {
-  memory { 10.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  memory { 3.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks params.max_forks
   container {
@@ -184,12 +203,17 @@ process pandora_map_path_illumina {
   
   """
   pandora map -p ${prg} -r ${reads} --illumina --genome_size 1000
+  if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
+  echo "pandora/pandora.consensus.fq.gz exists"
+  else
+  exit 1
+  fi
   """
 } 
 
 process compare_output_path_to_input_nano {
   memory { 0.01.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks params.max_forks
   container {
@@ -210,7 +234,7 @@ process compare_output_path_to_input_nano {
 
 process compare_output_path_to_input_illumina {
   memory { 0.01.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   maxForks params.max_forks
   container {

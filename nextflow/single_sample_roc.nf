@@ -71,7 +71,7 @@ if (params.snps) {
         set (val("${name}"), file("${vcf_reference}"), file("*.filtered.vcf")) into filtered_vcfs
 
         """
-        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 41 --snps
+        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 31 --snps
         """
     }
 } 
@@ -91,7 +91,7 @@ else {
         set (val("${name}"), file("${vcf_reference}"), file("*.filtered.vcf")) into filtered_vcfs
         
         """
-        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 41
+        python3 ${params.pipeline_root}/scripts/filter_vcf.py --vcf ${vcf} --vcf_ref ${vcf_reference} --flank 31
         """
     }
 }
@@ -126,7 +126,7 @@ if (params.mask) {
           mv n.\$v \$v
         fi
         bwa index ${truth_assembly}
-        minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls --exclude_bed ${mask}
+        minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 31 --variant_merge_length 31 --include_ref_calls --exclude_bed ${mask}
         """
     }
 } 
@@ -159,7 +159,7 @@ process check_vcf {
       mv n.\$v \$v
     fi
     bwa index ${truth_assembly}
-    minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 41 --variant_merge_length 41 --include_ref_calls
+    minos check_with_ref ${vcf} \$v ${truth_assembly} minos --allow_flank_mismatches --flank_length 31 --variant_merge_length 31 --include_ref_calls
     """
 }
 }
@@ -198,11 +198,10 @@ process minos_to_df {
     conf_threshold = 0
     c = list(tp['GT_CONF'].values) + list(fp['GT_CONF'].values)
     c.sort()
-    old_total = stats['total'].values[0] - stats['gt_excluded'].values[0]
+    total = stats['total'].values[0] - stats['gt_excluded'].values[0]
     total_tp = sum(tp['Count'])
     total_fp = sum(fp['Count'])
-    total = total_tp + total_fp
-    print(old_total, total, total_tp, total_fp)
+    print(total, total_tp, total_fp)
     for confidence in c:
         num_tp = sum(tp[tp['GT_CONF'] >= confidence]['Count'])
         num_fp = sum(fp[fp['GT_CONF'] >= confidence]['Count'])

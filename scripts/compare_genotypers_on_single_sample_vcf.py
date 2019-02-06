@@ -37,19 +37,6 @@ def syscall(command, allow_fail=False):
     print(completed_process.stdout)
     return completed_process
 
-def get_vcf_vcfref_pairs(directory):
-    '''Compares strings to find pairs of VCF files called against the same VCF reference'''
-    paths = glob.glob(directory + '/*.ref.fa')
-    refs = [f.split("/")[-1] for f in paths]
-
-    results = []
-    for r in refs:
-        name = r[:-7]
-        vcf_ref = "/".join([directory, r])
-        vcf = "/".join([directory, name + ".vcf"])
-        results.append([name, vcf_ref, vcf])
-    return results
-
 def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name, flank, mask):
     '''Runs minos command to evaluate how many variants from truth vcf are called in query vcf'''
     minos_binary = find_binary('minos')
@@ -221,8 +208,10 @@ parser.add_argument('--truth_vcf_ref', type=str,
                     help='Reference FASTA for truth VCF')
 parser.add_argument('--mask', type=str, default="",
                     help='BED file of regions of truth reference which are untrustworthy')
-parser.add_argument('--sample_dir', type=str,
-                    help='Directory of VCF, VCF_ref pairs for generated')
+parser.add_argument('--sample_vcf', type=str,
+                    help='VCF of genotyped')
+parser.add_argument('--sample_vcf_ref', type=str,
+                    help='Reference FASTA for sample VCF')
 parser.add_argument('--recall_flank', '-fr', type=int, default=10,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
@@ -238,29 +227,17 @@ if truth_vcf_ref.endswith(".gz"):
     syscall(command)
     truth_vcf_ref = "truth.fa"
 
-pairs = get_vcf_vcfref_pairs(args.sample_dir)
-dfs = []
-for run in pairs:
-    name, vcf_ref, vcf = run
-    print(name)
-    if len(glob.glob(name + ".pkl")) == 0:
-        run_evaluate_recall(truth_vcf, truth_vcf_ref, vcf, vcf_ref, name, args.recall_flank, args.mask)
-        run_evaluate_precision(truth_vcf_ref, vcf, vcf_ref, name, args.precision_flank, args.mask, args.snps)
-        dfs.append(minos_to_df(name))
-        #files = glob.glob("tmp.precision*")
-        #for f in files:
-        #    os.unlink(f)
-        #files = glob.glob("tmp.recall*")
-        #for f in files:
-        #    os.unlink(f)
-print("plot graphs")
-plot_graphs(dfs)
+sample_vcf = args.sample_vcf
+sample_vcf_ref = args.sample_vcf_ref
+if sample_vcf_ref.endswith(".gz"):
+    command = ' '.join(['zcat', sample_vcf_ref, '> sample.fa'])
+    syscall(command)
+    sample_vcf_ref = "sample.fa"
+name = sample_vcf_ref[:-7]
 
-#files = glob.glob("tmp.*")
-#for f in files:
-#    os.unlink(f)
-    
-#files = glob.glob(truth + ".*")
-#for f in files:
-#    os.unlink(f)
+print(name)
+if len(glob.glob(name + ".pkl")) == 0:
+    run_evaluate_recall(truth_vcf, truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.recall_flank, args.mask)
+    run_evaluate_precision(truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.precision_flank, args.mask, args.snps)
+    df = minos_to_df(name)
 

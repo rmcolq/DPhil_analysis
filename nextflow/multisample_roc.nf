@@ -113,7 +113,7 @@ if (params.mask1 && params.mask2) {
         file('*.pkl') into pickled_dfs
 
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_pair_of_samples.py --truth1 ${truth_assembly1} --truth2 ${truth_assembly2} --sample_dir1 ${vcf_directory1} --sample_dir2 ${vcf_directory2} --mask1 ${mask1} --mask2 ${mask2} --flank 7
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_pair_of_samples.py --truth1 ${truth_assembly1} --truth2 ${truth_assembly2} --sample_dir1 ${vcf_directory1} --sample_dir2 ${vcf_directory2} --mask1 ${mask1} --mask2 ${mask2}
         """
     }
 }
@@ -137,7 +137,7 @@ else {
         file('*.pkl') into pickled_dfs
     
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_pair_of_samples.py --truth1 ${truth_assembly1} --truth2 ${truth_assembly2} --sample_dir1 ${vcf_directory1} --sample_dir2 ${vcf_directory2} --flank 7
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_pair_of_samples.py --truth1 ${truth_assembly1} --truth2 ${truth_assembly2} --sample_dir1 ${vcf_directory1} --sample_dir2 ${vcf_directory2}
         """
     }
 }

@@ -1,9 +1,17 @@
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
 import argparse
+import gzip
 
 def remove_flanks(in_fq, out_fa, flank_size):
-    in_seqs = list(SeqIO.parse(in_fq, "fastq"))
+    in_seqs = []
+
+    print(in_fq, in_fq[-3:])
+    if in_fq[-3:] == ".gz":
+        with gzip.open(in_fq, 'rt') as input_handle:
+            in_seqs = list(SeqIO.parse(input_handle, "fastq"))
+    else:
+        in_seqs = list(SeqIO.parse(in_fq, "fastq"))
     out_records = []
 
     for entry in in_seqs:

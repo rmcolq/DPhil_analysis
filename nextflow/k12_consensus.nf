@@ -154,16 +154,13 @@ process compare_output_to_input_with_flanks {
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   maxForks params.max_forks
-  container {
-      'shub://rmcolq/Singularity_recipes:minos'
-  }
 
   input:
   set file(out_path), val(type) from pandora_output1
   file(reference) from reference_assembly
 
   output:
-  set file("out.sam"), val(type) into output_sam_with_flanks
+  set file("out.sam"), val(type), val("with_flanks") into output_sam_with_flanks
 
   """
   bwa index ${reference}
@@ -175,23 +172,24 @@ process compare_output_to_input_without_flanks {
   memory { 0.01.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
-  maxForks params.max_forks
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
+  maxForks params.max_forks
 
   input:
   set file(out_path), val(type) from pandora_output2
   file(reference) from reference_assembly
 
   output:
-  set file("out.sam"), val(type) into output_sam_without_flanks
+  set file("out.sam"), val(type), val("without_flanks") into output_sam_without_flanks
+  set file("filtered.bam"), val(type) into output_sam_for_alignqc
 
   """
   bwa index ${reference}
-  gunzip ${out_path}
-  python3 ${params.pipeline_root}/scripts/remove_flanks.py --in_fq \${${out_path}::-3} --out_fa "out.fa" --flank_size 28
+  python3 ${params.pipeline_root}/scripts/remove_flank.py --in_fq ${out_path} --out_fa "out.fa" --flank_size 28
   bwa mem ${reference} out.fa > out.sam
+  python3 ${params.pipeline_root}/scripts/filter_bad_sam.py --sam out.sam
   """
 }
 
@@ -207,11 +205,11 @@ process make_plot {
   publishDir final_outdir, mode: 'copy', overwrite: false
   
   input:
-  set file(samfile), val(type) from output_sam
+  set file(samfile), val(type), val(wflanks) from output_sam
   
   output:
-  file("${type}.sam_mismatch_counts.png") into output_plot
-  file ("${type}_list.txt") into count_list
+  file("${wflanks}_${type}.sam_mismatch_counts.png") into output_plot
+  file ("${wflanks}_${type}_list.txt") into count_list
 
   """
   #!/usr/bin/env python3
@@ -276,7 +274,7 @@ process make_plot {
           for item in num_mismatches:
               f.write("%s," % item)
     
-  plot_sam_dist("${samfile}", "${type}")
+  plot_sam_dist("${samfile}", "${wflanks}_${type}")
   """
 }
 
@@ -293,7 +291,7 @@ process make_joint_plot {
   file count_files from count_list.collect()
 
   output:
-  file("joint.sam_mismatch_counts.png") into output_joint_plot
+  file("*joint.sam_mismatch_counts.png") into output_joint_plot
 
   """
 #!/usr/bin/env python3
@@ -301,31 +299,59 @@ process make_joint_plot {
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-count_dict = {}
+wflank_dict = {}
 for file in "${count_files}".split():
     with open(file, 'r') as f:
         line = f.readline()
-        type = line.split('\t')[0]
+        type = file.split('_')[2]
+        wflank = file.split('_')[0]
+        if wflank not in wflank_dict.keys():
+            wflank_dict[wflank] = {}
+        print(type, wflank)
         counts = line.split('\t')[1].split(',')
         print(len(counts), counts[-10:])
         icounts = [int(i) for i in counts if len(i) > 0]
         print(len(icounts), icounts[-10:])
-        count_dict[type] = icounts
+        wflank_dict[wflank][type] = icounts
   
-plt.rcParams['figure.figsize'] = 10,6
-fig, ax = plt.subplots()
-plt.style.use('seaborn-deep')
-ax.hist([count_dict["Illumina"], count_dict["Nanopore"]],
-      density=True,
-      label=["Illumina", "Nanopore"],
-      align="mid",
-      bins=range(0, 42, 1))
+for wflank in wflank_dict.keys():
+    plt.rcParams['figure.figsize'] = 10,6
+    fig, ax = plt.subplots()
+    plt.style.use('seaborn-deep')
+    print(wflank, wflank_dict[wflank].keys())
+    ax.hist([wflank_dict[wflank]["Illumina"], wflank_dict[wflank]["Nanopore"]],
+          density=True,
+          label=["Illumina", "Nanopore"],
+          align="mid",
+          bins=range(0, 42, 1))
 
-plt.legend()
-ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
-#plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-#plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
-plt.savefig('joint.sam_mismatch_counts.png', transparent=True)
+    plt.legend()
+    ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
+    #plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    #plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    plt.savefig(wflank + '_flanks.joint.sam_mismatch_counts.png', transparent=True)
 
+  """
+}
+
+process alignqc_report {
+  memory { 10.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+  container {
+      'shub://rmcolq/Singularity_recipes:alignqc'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: false
+
+  input:
+  set file(bamfile), val(type) from output_sam_for_alignqc
+  file(reference_assembly)
+
+  output:
+  file("*.xhtml")
+
+  """
+  samtools sort -O BAM -o ${bamfile}.sorted.bam ${bamfile}
+  alignqc analyze ${bamfile}.sorted.bam -g ${reference_assembly} --no_transcriptome -o ${type}.alignqc_report.xhtml
   """
 }

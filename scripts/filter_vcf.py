@@ -30,7 +30,7 @@ def filter_vcf_by_ref_pos(in_vcf, ref_fasta, flank_size):
     out_vcf_good = vcf.Writer(open(in_vcf.replace(".vcf",".good.vcf"),'w'), vcf_reader)
     out_vcf_bad = vcf.Writer(open(in_vcf.replace(".vcf",".bad.vcf"),'w'), vcf_reader)
 
-    if ref_fasta[:-3] == ".gz":
+    if ref_fasta[-3:] == ".gz":
         with gzip.open(ref_fasta, 'rt') as input_handle:
             vcf_ref = SeqIO.to_dict(SeqIO.parse(input_handle, "fasta"))
 
