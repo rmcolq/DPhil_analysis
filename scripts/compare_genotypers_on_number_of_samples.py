@@ -134,33 +134,46 @@ def run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mask1
         command += " --exclude_bed " + mask2
     syscall(command)
 
+def create_or_append(ultimate_file, data_file):
+    if os.path.isfile(ultimate_file):
+        command = ' '.join(['tail -n+2', data_file, '>>', ultimate_file])
+    else:
+        command = ' '.join(['cp', data_file, ultimate_file])
+    syscall(command)
+
+def append_stats(name):
+    create_or_append(name + ".y.gt_conf_hist.tsv", "tmp.compare." + name + ".gt_conf_hist.tsv")
+    create_or_append(name + ".y.stats.tsv", "tmp.compare." + name + ".stats.tsv")
+    create_or_append(name + ".x.gt_conf_hist.TP.tsv", "tmp.individual." + name + '.1.gt_conf_hist.TP.tsv')
+    create_or_append(name + ".x.gt_conf_hist.FP.tsv", "tmp.individual." + name + '.1.gt_conf_hist.FP.tsv')
+    create_or_append(name + ".x.stats.tsv", "tmp.individual." + name + '.1.stats.tsv')
+    create_or_append(name + ".x.gt_conf_hist.TP.tsv", "tmp.individual." + name + '.2.gt_conf_hist.TP.tsv')
+    create_or_append(name + ".x.gt_conf_hist.FP.tsv", "tmp.individual." + name + '.2.gt_conf_hist.FP.tsv')
+    create_or_append(name + ".x.stats.tsv", "tmp.individual." + name + '.2.stats.tsv')
+
 def minos_to_df(name):
-    y_gt = pd.read_table("tmp.compare." + name + ".gt_conf_hist.tsv")
-    y_stats = pd.read_table("tmp.compare." + name + ".stats.tsv")
+    y_gt = pd.read_table(name + ".y.gt_conf_hist.tsv")
+    y_stats = pd.read_table(name + ".y.stats.tsv")
 
-    x_tp1 = pd.read_table("tmp.individual." + name + '.1.gt_conf_hist.TP.tsv')
-    x_fp1 = pd.read_table("tmp.individual." + name + '.1.gt_conf_hist.FP.tsv')
-    x_stats1 = pd.read_table("tmp.individual." + name + '.1.stats.tsv')
-
-    x_tp2 = pd.read_table("tmp.individual." + name + '.2.gt_conf_hist.TP.tsv')
-    x_fp2 = pd.read_table("tmp.individual." + name + '.2.gt_conf_hist.FP.tsv')
-    x_stats2 = pd.read_table("tmp.individual." + name + '.2.stats.tsv')
+    x_tp = pd.read_table(name + ".x.gt_conf_hist.TP.tsv")
+    x_fp = pd.read_table(name + ".x.gt_conf_hist.FP.tsv")
+    x_stats = pd.read_table(name + ".x.stats.tsv")
 
     yscat = []
     xscat = []
 
     conf_threshold = 0
-    c_values = list(y_gt['GT_CONF'].values) + list(x_tp1['GT_CONF'].values) + list(x_fp1['GT_CONF'].values) + list(x_tp2['GT_CONF'].values) + list(x_fp2['GT_CONF'].values)
+    c_values = list(y_gt['GT_CONF'].values) + list(x_tp['GT_CONF'].values) + list(x_fp['GT_CONF'].values)
     c_values.sort()
 
-    ytotal = y_stats['total'].values[0] - y_stats['excluded_vars'].values[0]
+    ytotal = sum(y_stats['total']) - sum(y_stats['excluded_vars'])
     for confidence in c_values:
         dnadiff_frac = float(sum(y_gt[y_gt['GT_CONF'] >= confidence]['Count']))/float(ytotal)
         if dnadiff_frac < 0.1 or confidence == 0:
             continue
         yscat.append(dnadiff_frac)
-        sum_fp = sum(x_fp1[x_fp1['GT_CONF'] >= confidence]['Count'])+ sum(x_fp2[x_fp2['GT_CONF'] >= confidence]['Count'])
-        sum_tp = sum(x_tp1[x_tp1['GT_CONF'] >= confidence]['Count'])+ sum(x_tp2[x_tp2['GT_CONF'] >= confidence]['Count'])
+        sum_fp = sum(x_fp[x_fp['GT_CONF'] >= confidence]['Count'])
+        sum_tp = sum(x_tp[x_tp['GT_CONF'] >= confidence]['Count'])
         if sum_fp > 0 and sum_tp > 0:
             xscat.append(sum_fp/float(sum_fp + sum_tp))
             if len(yscat) > 2 and (yscat[-1] < 0.6 < yscat[-2] or yscat[-2] < 0.6 < yscat[-1]):
@@ -235,64 +248,58 @@ def plot_graphs(items):
 
 
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
-parser.add_argument('--truth1', '-t1', type=str,
-                    help='FASTA of truth assembly for sample1')
-parser.add_argument('--truth2', '-t2', type=str,
-                    help='FASTA of truth assembly for sample2')
-parser.add_argument('--mask1', '-m1', type=str, default="",
-                    help='BED of untrustworthy regions for truth assembly for sample1')
-parser.add_argument('--mask2', '-m2', type=str, default="",
-                    help='BED of untrustworthy regions for truth assembly for sample2')
-parser.add_argument('--sample_dir1', '-d1', type=str,
-                    help='Directory of VCF, VCF_ref pairs for sample1')
-parser.add_argument('--sample_dir2', '-d2', type=str,
-                    help='Directory of VCF, VCF_ref pairs for sample2')
+parser.add_argument('--sample_tsv', '-t1', type=str,
+                    help='TSV with a line for each sample, containing ID, TRUTH_FASTA, VCF_DIRECTORY, MASK')
 parser.add_argument('--recall_flank', '-fr', type=int, default=5,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')
 args = parser.parse_args()
 
-truth1 = args.truth1
-if truth1.endswith(".gz"):
-    command = ' '.join(['zcat', truth1, '> truth1.fa'])
-    syscall(command)
-    truth1 = "truth1.fa"
-truth2 = args.truth2
-if truth2.endswith(".gz"):
-    command = ' '.join(['zcat', truth2, '> truth2.fa'])
-    syscall(command)
-    truth2 = "truth2.fa"
+index = pd.read_csv(args.sample_tsv, sep='\t', header=None, names=['id', 'truth', 'vcf_dir', 'mask'])
 
-run_dnadiff(truth1, truth2)
-pairs = get_vcf_pairs(args.sample_dir1, args.sample_dir2)
-dfs = []
-for run in pairs:
-    name, vcf_ref, vcf1, vcf2 = run
-    print(name)
-    if len(glob.glob(name + ".pkl")) == 0:
-        run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, name, args.recall_flank, args.mask1, args.mask2)
-        run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, args.precision_flank, args.mask1, args.mask2)
-        dfs.append(minos_to_df(name))
-        #files = glob.glob("tmp.individual*")
-        #for f in files:
-        #    os.unlink(f)
-        #files = glob.glob("tmp.compare*")
-        #for f in files:
-        #    os.unlink(f)
-print("plot graphs")
-plot_graphs(dfs)
+unzipped_truths = []
+for truth in index['truth']:
+    if truth.endswith(".gz"):
+        command = ' '.join(['zcat', truth, '>', truth[:-3])
+        syscall(command)
+        unzipped_truths.append(truth[:-3])
+    else:
+        unzipped_truths.append(truth)
+index['unzipped_truth'] = unzipped_truths
 
-#files = glob.glob("tmp.*")
-#for f in files:
-#    os.unlink(f)
+names = []
+for pair in itertools.combinations(index.itertuples(), 2):
+    (num1, id1, truth1, sample_dir1, mask1) = pair[0]
+    (num2, id2, truth2, sample_dir2, mask2) = pair[1] 
+    run_dnadiff(truth1, truth2)
+    pairs = get_vcf_pairs(sample_dir1, sample_dir2)
+    for run in pairs:
+        name, vcf_ref, vcf1, vcf2 = run
+        print(name, id1, id2)
+        names.append(name)
+        if len(glob.glob(name +"_" + id1 + "_" + id2 + ".pkl")) == 0:
+            run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, name, args.recall_flank, mask1, mask2)
+            run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, args.precision_flank, mask1, mask2)
+            append_stats(name)
+            files = glob.glob("tmp.individual*")
+            for f in files:
+                if not t.endswith('.tsv')
+                os.unlink(f)
+            files = glob.glob("tmp.compare*")
+            for f in files:
+                os.unlink(f)
+    files = glob.glob(truth1 + ".*")
+    for f in files:
+        os.unlink(f)
+    files = glob.glob(truth2 + ".*")
+    for f in files:
+        os.unlink(f)
     
-files = glob.glob(truth1 + ".*")
-for f in files:
-    os.unlink(f)
+dfs = []
+for name in names:
+    dfs.append(minos_to_df(name))
 
-files = glob.glob(truth2 + ".*")
-for f in files:
-    os.unlink(f)
-
+print("plot graphs")
+plot_graphs(dfs_dict)
 

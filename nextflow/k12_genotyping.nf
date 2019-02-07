@@ -180,27 +180,25 @@ process simulate_new_ref {
     output:
     file("simulated_ref.fa") into reference_assemblies_snippy
     file("simulated_ref.fa") into reference_assemblies_nanopolish
-    set file("simulated_vars.vcf"), file("${ref}") into true_variants
+    set file("simulated_vars.vcf"), file("truth.fa") into true_variants
 
     """
     v=${truth_assembly}
     if [ \${v: -3} == ".gz" ]
     then
-      zcat \$v | awk '{print \$1;}' > \${v::-3}
-      v=\${v::-3}
+      zcat \$v | awk '{print \$1;}'| cut -d "." -f1 > truth.fa
     else
-      cat \$v | awk '{print \$1;}' > n.\$v
-      mv n.\$v \$v
+      cat \$v | awk '{print \$1;}'| cut -d "." -f1 > truth.fa
     fi
-    bwa index \$v
-    bwa mem \$v ${ref} > out.sam
-    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref \$v --sam out.sam --out_vcf simulated_vars.vcf
+    bwa index truth.fa
+    bwa mem truth.fa ${ref} > out.sam
+    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep "#" > simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep -v "#" | sort -k2 -n >> simulated_vars.vcf
     python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf simulated_vars.vcf
     bgzip simulated_vars.filtered.vcf
     tabix -p vcf simulated_vars.filtered.vcf.gz
-    cat \$v | vcf-consensus simulated_vars.filtered.vcf.gz | awk '{print \$1;}' > simulated_ref.fa
+    cat truth.fa | vcf-consensus simulated_vars.filtered.vcf.gz > simulated_ref.fa
     """
 }
 
@@ -299,7 +297,9 @@ process nanopolish_genotype_nanopore {
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
 
     """
-    minimap2 -ax map-ont --splice-flank=no --secondary=no -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
+    bwa index ${reference_assembly}
+    bwa mem -x ont2d -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
+    #minimap2 -ax map-ont --splice-flank=no --secondary=no -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
     samtools index reads.sorted.bam
     mkdir -p nanopolish.results/vcf
     python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \

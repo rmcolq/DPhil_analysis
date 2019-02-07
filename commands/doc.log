@@ -1,0 +1,43 @@
+# Using samples:
+# All raw reads (pacbio, nanopore, Illumina) are in this bioproject https://www.ncbi.nlm.nih.gov/bioproject/PRJNA422511
+#
+# Assemblies are in https://figshare.com/articles/Hybrid_Enterobacteriaceae_assemblies_using_PacBio_Illumina_or_ONT_Illumina_sequencing/7649051
+#
+# Picking two of the four E. coli at random, the SRA accessions for raw reads are:
+#
+# Biosample: SAMN10819847 (CFT073, reference strain)
+# PacBio: SRX5299472
+# Nanopore: SRX5299443
+# Illumina: SRX5287344
+#
+# Biosample: SAMN10819802 (RHB11-C04, cattle feces)
+# PacBio: SRX5299449
+# Nanopore: SRX5299467
+# Illumina: SRX5287351
+
+# downloaded 2 sets of illumina/nanopore/pacbio reads from SRA using
+cd /nfs/leia/research/iqbal/rmcolq/data/trace/
+for n in SRX5299472 SRX5299443 SRX5287344 SRX5299449 SRX5299467 SRX5287351; do bsub.py 10 testfastqdump_$n fastq-dump $n; done
+
+# From the preprint https://doi.org/10.1101/530824
+# 350 Comparing de novo assemblies and reference genomes for the two reference strains (CFT073
+# 351 and MGH78578) we found that the hybrid assemblies from ONT and PacBio reads were
+# 352 more similar to each other (e.g. 18 SNPs and 0 indels for CFT073 and 24 SNPs and 13 indels
+# 353 for MGH78578) than to the available reference genome sequences (156-365 SNPs and 47-
+# 354 439 indels vs. the references, Table S6), possibly due to: (i) strain evolution in storage and
+# 355 sub-culture since the reference strains were sequenced; (ii) errors in the original reference
+# 356 sequences; and/or (iii) consistent errors in the hybrid assemblies.
+#
+# downloaded 2 assemblies
+#
+wget https://ndownloader.figshare.com/files/14209736
+mv 14209736 CFT073_subsampled_nanopore.fasta
+wget https://ndownloader.figshare.com/files/14210165
+mv 14210165 RHB11-C04_subsampled_nanopore.fasta 
+wget https://ndownloader.figshare.com/files/14209739
+mv 14209739 CFT073_subsampled_pacbio.fasta
+wget https://ndownloader.figshare.com/files/14210168
+mv 14210168 RHB11-C04_subsampled_pacbio.fasta
+
+# NB the preprint concludes that the filtered assemblies were worse,  but the downsampled ones were the same.
+# There were few differences between Nanopore and PacBio hybrid assemblies, and more between these and the reference assembly in NCBI for CFT073

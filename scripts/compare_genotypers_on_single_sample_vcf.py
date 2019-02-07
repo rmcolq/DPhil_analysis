@@ -105,7 +105,7 @@ def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
     if snps:
         restrict_to_snps(filtered_vcf)
         filtered_vcf = filtered_vcf.replace(".vcf",".snps.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(15)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
     if mask:
         command += " --exclude_bed " + mask
     syscall(command)
@@ -130,8 +130,8 @@ def minos_to_df(name):
         if dnadiff_frac < 0.1:
             continue
         yscat.append(dnadiff_frac)
-        sum_fp = sum(x_fp[x_fp1['GT_CONF'] >= confidence]['Count'])
-        sum_tp = sum(x_tp[x_tp1['GT_CONF'] >= confidence]['Count'])
+        sum_fp = sum(x_fp[x_fp['GT_CONF'] >= confidence]['Count'])
+        sum_tp = sum(x_tp[x_tp['GT_CONF'] >= confidence]['Count'])
         if sum_fp > 0 and sum_tp > 0:
             xscat.append(sum_fp/float(sum_fp + sum_tp))
         else:
@@ -212,7 +212,7 @@ parser.add_argument('--sample_vcf', type=str,
                     help='VCF of genotyped')
 parser.add_argument('--sample_vcf_ref', type=str,
                     help='Reference FASTA for sample VCF')
-parser.add_argument('--recall_flank', '-fr', type=int, default=10,
+parser.add_argument('--recall_flank', '-fr', type=int, default=5,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')

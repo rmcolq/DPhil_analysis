@@ -212,69 +212,7 @@ process make_plot {
   file ("${wflanks}_${type}_list.txt") into count_list
 
   """
-  #!/usr/bin/env python3
-
-  import seaborn as sns
-  import matplotlib.pyplot as plt
-  from matplotlib.backends.backend_pdf import PdfPages
-  from collections import Counter
-  import pandas as pd
-  import numpy as np
-
-  def plot_sam_dist(sam_file, type):
-      total_gene_bases = 0
-      total_mismatch_bases = 0
-      num_false_positives = 0
-      num_other = 0
-      num_genes = 0
-      num_mismatches = []
-    
-      f = open(sam_file, 'r')
-      all_names = []
-      non_unique_names = []
-      for line in f:
-          if line != "" and line[0].isalpha():
-              name = line.split('\t')[0]
-              if name in all_names:
-                  non_unique_names.append(name)
-              else:
-                  all_names.append(name)
-      f.close()
-   
-      f = open(sam_file, 'r')
-      for line in f:
-          if line == "" or not line[0].isalpha() or line.split('\t')[0] in non_unique_names:
-              continue
-          elif line.split('\t')[1]=="0" or line.split('\t')[1]=="16":
-              num = int(line.split('\t')[11].split("NM:i:")[-1])
-              num_mismatches.append(num)
-              total_mismatch_bases += num
-              total_gene_bases += len(line.split('\t')[9])
-              num_genes += 1
-          elif line.split('\t')[1]!="4":
-              num_false_positives += 1
-              num_genes += 1              
-      f.close()
-
-      if total_gene_bases == 0:
-          total_gene_bases = 1
-      print("False positive gene rate: %d/%d = %f" %(num_false_positives, num_genes, float(num_false_positives)/num_genes*100))
-      print("Estimated per base accuracy: 1 - %d/%d = %f" %(total_mismatch_bases, total_gene_bases, (1-(float(total_mismatch_bases)/total_gene_bases))*100))                
-      print(Counter(num_mismatches))
-      plt.rcParams['figure.figsize'] = 10,6
-      fig, ax = plt.subplots()
-      sns.distplot(num_mismatches, bins=range(0, max(num_mismatches)+2, 1), kde=False)
-      ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
-      plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-      plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
-      plt.savefig('%s.sam_mismatch_counts.png' %type, transparent=True)
-    
-      with open('%s_list.txt' %type, 'w') as f:
-          f.write("%s\t" % type)
-          for item in num_mismatches:
-              f.write("%s," % item)
-    
-  plot_sam_dist("${samfile}", "${wflanks}_${type}")
+  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "${wflanks}_${type}"
   """
 }
 

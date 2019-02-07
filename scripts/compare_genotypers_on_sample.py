@@ -118,7 +118,7 @@ def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
     if snps:
         restrict_to_snps(filtered_vcf)
         filtered_vcf = filtered_vcf.replace(".vcf",".snps.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(15)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
     if mask:
         command += " --exclude_bed " + mask
     syscall(command)
@@ -223,7 +223,7 @@ parser.add_argument('--mask', type=str, default="",
                     help='BED file of regions of truth reference which are untrustworthy')
 parser.add_argument('--sample_dir', type=str,
                     help='Directory of VCF, VCF_ref pairs for generated')
-parser.add_argument('--recall_flank', '-fr', type=int, default=10,
+parser.add_argument('--recall_flank', '-fr', type=int, default=5,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')
