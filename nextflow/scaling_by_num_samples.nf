@@ -1,6 +1,6 @@
 params.pangenome_prg = ""
-params.nanopore_reads = ""
-params.illumina_reads = ""
+params.nanopore_tsv = ""
+params.illumina_tsv = ""
 
 params.help = false
 params.final_outdir = "."
@@ -14,8 +14,8 @@ if (params.help){
         Usage: nextflow run pandora_compare.nf <arguments>
         Required arguments:
           --pangenome_prg       FILE    PRG file to use as input to pandora
-	  --nanopore_reads	FILE
-	  --illumina_reads	FILE
+	  --nanopore_tsv	FILE
+	  --illumina_tsv	FILE
 
         Optional:
           --final_outdir        DIRECTORY       Where to put final output files
@@ -36,20 +36,20 @@ else {
     exit 1, "Pangenome PRG file not provided -- aborting"
 }
 
-if (params.nanopore_reads) {
-    nanopore_reads = file(params.nanopore_reads).toAbsolutePath()
-    if (!nanopore_reads.exists()) {
-        exit 1, "Nanopore read file not found: ${params.nanopore_reads} -- aborting"
+if (params.nanopore_tsv) {
+    nanopore_tsv = file(params.nanopore_tsv).toAbsolutePath()
+    if (!nanopore_tsv.exists()) {
+        exit 1, "Nanopore read file not found: ${params.nanopore_tsv} -- aborting"
     }
 }
 else {
     exit 1, "Nanopore read file not provided -- aborting"
 }
 
-if (params.illumina_reads) {
-    illumina_reads = file(params.illumina_reads).toAbsolutePath()
-    if (!illumina_reads.exists()) {
-        exit 1, "Illumina read file not found: ${params.illumina_reads} -- aborting"
+if (params.illumina_tsv) {
+    illumina_tsv = file(params.illumina_tsv).toAbsolutePath()
+    if (!illumina_tsv.exists()) {
+        exit 1, "Illumina read file not found: ${params.illumina_tsv} -- aborting"
     }
 }   
 else {
@@ -87,10 +87,10 @@ if (!pandora_idx.exists()) {
     }
 }
 
-covgs_nano = Channel.from( 1..30 ).map { 10 * it }
-covgs_illu = Channel.from( 1..30 ).map { 10 * it }
+num_samples_nano = Channel.from( 2..15 )
+num_samples_illu = Channel.from( 2..15 )
 
-process pandora_map_nano {
+process pandora_compare_nano {
   memory { 40.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
@@ -99,22 +99,23 @@ process pandora_map_nano {
   }
   
   input:
-  val covg from covgs_nano
+  val num_samples from num_samples_nano
   file prg from pangenome_prg
-  file reads from nanopore_reads
+  file reads from nanopore_tsv
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set val("Nanopore"), val("${covg}"), file("timeinfo.txt") into pandora_output_nano
+  set val("Nanopore"), val("${num_samples}"), file("timeinfo.txt") into pandora_output_nano
   
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${covg} &> pandora.log" > command.sh
+  head -n ${num_samples} ${reads} > subreads.tsv
+  echo "pandora compare -p ${prg} -r subreads.tsv --genotype --max_covg 30 &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
   """
 } 
 
-process pandora_map_illumina {
+process pandora_compare_illumina {
   memory { 55.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
@@ -123,17 +124,18 @@ process pandora_map_illumina {
   }
 
   input:
-  val covg from covgs_illu
+  val num_samples from num_samples_illu
   file prg from pangenome_prg
-  file reads from illumina_reads
+  file reads from illumina_tsv
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
 
   output:
-  set val("Illumina"), val("${covg}"), file("timeinfo.txt") into pandora_output_illumina
+  set val("Illumina"), val("${num_samples}"), file("timeinfo.txt") into pandora_output_illumina
 
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${covg} --illumina &> pandora.log" > command.sh
+  head -n ${num_samples} ${reads} > subreads.tsv
+  echo "pandora compare -p ${prg} -r subreads.tsv --genotype --max_covg 30 --illumina &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
   """
 }
@@ -146,7 +148,7 @@ process make_df {
   maxRetries 3
 
   input:
-  set val(type), val(covg), file(timeinfo) from pandora_output
+  set val(type), val(num_samples), file(timeinfo) from pandora_output
 
   output:
   file("out.tsv") into df_line
@@ -163,7 +165,7 @@ process make_df {
   maxmem=\${stringarray[5]}
   echo \$maxmem
 
-  echo -e "${type}\t${covg}\t\$cputime\t\$maxmem" > out.tsv
+  echo -e "${type}\t${num_samples}\t\$cputime\t\$maxmem" > out.tsv
   """
 }
 
@@ -195,7 +197,7 @@ process make_plot {
   import numpy as np
  
   def plot_df(tsv_file):
-      df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'covg', 'time', 'max_mem'])
+      df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'num_samples', 'time', 'max_mem'])
       df['max_mem_gb'] = df['max_mem']/(1024*1024)
       plt.rcParams['figure.figsize'] = 10,6
       fig, ax = plt.subplots()
@@ -205,27 +207,20 @@ process make_plot {
       plt.style.use('seaborn-colorblind')
 
       # Label the axes and title the plot
-      ax.set_xlabel('Coverage', size = 26)
+      ax.set_xlabel('Number of Samples', size = 26)
       ax.set_ylabel('Time(s)', size = 26)
       
-      sns.lmplot( x="covg", y="time", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
+      g = sns.lmplot( x="num_samples", y="time", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
+      g = (g.set_axis_labels("Number of Samples", "Time (s)")
       plt.legend(loc='lower right')
       plt.savefig('scaling_time.png', transparent=True)
 
-      sns.lmplot( x="covg", y="max_mem", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
+      g = sns.lmplot( x="num_samples", y="max_mem_gb", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
+      g = (g.set_axis_labels("Number of Samples", "Max Memory (GB)")
       plt.legend(loc='lower right')
-      ax.set_ylabel('Max Memory (KB)', size = 26)
+      ax.set_ylabel('Max Memory (GB)', size = 26)
       plt.savefig('scaling_mem.png', transparent=True)
 
-      #plt.plot( 'covg', 'time', data=df, marker='o', markerfacecolor='blue', markersize=12, color='blue', linewidth=4)
-      #plt.plot( 'x', 'y2', data=df, marker='', color='olive', linewidth=2)
-      #sns.regplot(x="covg", y="time", color="type", data=df, marker='x')
-      #ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-      #ax.set_ylabel('Max Memory (KB)')  # we already handled the x-label with ax1
-      #sns.regplot(x="covg", y="max_mem", color="type", data=df, marker='o')
-      #fig.tight_layout()  # otherwise the right y-label is slightly clipped
-      #plt.savefig('scaling.png', transparent=True)
-    
   plot_df("${data}")
   """
 }

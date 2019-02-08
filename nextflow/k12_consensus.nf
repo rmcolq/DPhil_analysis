@@ -233,42 +233,21 @@ process make_joint_plot {
 
   """
 #!/usr/bin/env python3
-
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+import sys
+sys.path.append('${params.pipeline_root}/scripts')
+from plot_joint_histogram import plot_count_hist
 
 wflank_dict = {}
 for file in "${count_files}".split():
-    with open(file, 'r') as f:
-        line = f.readline()
-        type = file.split('_')[2]
-        wflank = file.split('_')[0]
-        if wflank not in wflank_dict.keys():
-            wflank_dict[wflank] = {}
-        print(type, wflank)
-        counts = line.split('\t')[1].split(',')
-        print(len(counts), counts[-10:])
-        icounts = [int(i) for i in counts if len(i) > 0]
-        print(len(icounts), icounts[-10:])
-        wflank_dict[wflank][type] = icounts
-  
-for wflank in wflank_dict.keys():
-    plt.rcParams['figure.figsize'] = 10,6
-    fig, ax = plt.subplots()
-    plt.style.use('seaborn-deep')
-    print(wflank, wflank_dict[wflank].keys())
-    ax.hist([wflank_dict[wflank]["Illumina"], wflank_dict[wflank]["Nanopore"]],
-          density=True,
-          label=["Illumina", "Nanopore"],
-          align="mid",
-          bins=range(0, 42, 1))
-
-    plt.legend()
-    ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
-    #plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-    #plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
-    plt.savefig(wflank + '_flanks.joint.sam_mismatch_counts.png', transparent=True)
-
+    wflank = file.split('_')[0]
+    if wflank not in wflank_dict.keys():
+        wflank_dict[wflank] = []
+    wflank_dict[wflank].append(file)
+    
+for prefix in wflank_dict.keys():
+    if len(wflank_dict[prefix]) == 2:
+       print(wflank_dict[prefix][0], wflank_dict[prefix][1], prefix)
+       plot_count_hist(wflank_dict[prefix][0], wflank_dict[prefix][1], prefix + "_flanks_")
   """
 }
 

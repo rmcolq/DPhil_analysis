@@ -1,5 +1,5 @@
 params.pangenome_prg = ""
-params.number_paths = 1
+params.number_paths = 5
 
 params.help = false
 params.final_outdir = "."
@@ -40,8 +40,8 @@ if (!final_outdir.exists()) {
 
 process pandora_random_paths {
   memory { 7.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -65,8 +65,8 @@ random_paths_output.splitFasta( file: true ).separate( path_nano, path_illumina 
 
 process simulate_nanopore_reads {
   memory { 10.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks 8
   time '20m'
   container {
@@ -105,8 +105,8 @@ process simulate_nanopore_reads {
 
 process simulate_illumina_reads {
   memory { 20.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks 8
   container {
       'shub://rmcolq/Singularity_recipes:ART'
@@ -119,7 +119,11 @@ process simulate_illumina_reads {
   set(file("${path_fasta}"),file("simulated.fq")) into sim_reads_illumina
 
   """
-  art_illumina -ss HS25 -i ${path_fasta} -l 150 -f 100 -o simulated
+  head -n1 ${path_fasta} > random_path.fa
+  echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >> random_path.fa
+  head -n2 ${path_fasta} | tail -n1 >> random_path.fa
+  echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >> random_path.fa
+  art_illumina -ss HS25 -i random_path.fa -l 150 -f 100 -o simulated
   if [[ -s simulated.fq ]] ; then
   echo "simulated.fq has data."
   else
@@ -157,8 +161,8 @@ if (!pandora_idx.exists()) {
 
 process pandora_map_path_nano {
   memory { 3.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -171,7 +175,7 @@ process pandora_map_path_nano {
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora/pandora.consensus.fq.gz"), file("${path}") into pandora_output_path_nano
+  set file("pandora_results.fq"), file("${path}") into pandora_output_path_nano
   
   """
   pandora map -p ${prg} -r ${reads} --genome_size 1000 --max_covg 25000
@@ -180,13 +184,22 @@ process pandora_map_path_nano {
   else
   exit 1
   fi
+
+  v=\$(head -n1 ${path})
+  zgrep -A3 $(echo ${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
+  if [[ -s pandora_result.fq ]] ; then
+  echo "pandora/pandora.consensus.fq.gz has results."
+  else
+  exit 1
+  fi
+  
   """
 } 
 
 process pandora_map_path_illumina {
   memory { 3.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -199,7 +212,7 @@ process pandora_map_path_illumina {
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora/pandora.consensus.fq.gz"), file("${path}") into pandora_output_path_illumina
+  set file("pandora_results.fq"), file("${path}") into pandora_output_path_illumina
   
   """
   pandora map -p ${prg} -r ${reads} --illumina --genome_size 1000
@@ -208,13 +221,21 @@ process pandora_map_path_illumina {
   else
   exit 1
   fi
+
+  v=\$(head -n1 ${path})
+  zgrep -A3 $(echo ${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
+  if [[ -s pandora_result.fq ]] ; then
+  echo "pandora/pandora.consensus.fq.gz has results."
+  else
+  exit 1
+  fi
   """
 } 
 
 process compare_output_path_to_input_nano {
   memory { 0.01.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks params.max_forks
   container {
       'shub://rmcolq/Singularity_recipes:minos'
@@ -234,8 +255,8 @@ process compare_output_path_to_input_nano {
 
 process compare_output_path_to_input_illumina {
   memory { 0.01.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+  maxRetries 1
   maxForks params.max_forks
   container {
       'shub://rmcolq/Singularity_recipes:minos'
@@ -256,65 +277,71 @@ process compare_output_path_to_input_illumina {
 output_sam_nano.collectFile(name: final_outdir/'pandora_random_paths_nano.sam').set { full_sam_nano }
 output_sam_illumina.collectFile(name: final_outdir/'pandora_random_paths_illumina.sam').set { full_sam_illumina }
 
-full_sam_nano.concat( full_sam_illumina ).set { full_sam }
-
-process make_plot {
-  memory { 0.1.GB * task.attempt } 
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
+process make_plot_nano {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
   publishDir final_outdir, mode: 'copy', overwrite: false
   
   input:
-  file(samfile) from full_sam
+  file(samfile) from full_sam_nano
   
   output:
-  file("${samfile}.sam_mismatch_counts.png") into output_plot
+  file("*.sam_mismatch_counts.png") into output_plot_nano
+  file ("*_list.txt") into count_list_nano
+  
+  """
+  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "Nanopore"
+  """
+}
+process make_plot_illumina {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: false
+
+  input:
+  file(samfile) from full_sam_illumina
+
+  output:
+  file("*.sam_mismatch_counts.png") into output_plot_ill
+  file ("*_list.txt") into count_list_illumina
+  
+  """
+  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "Illumina"
+  """
+} 
+
+count_list_nano.concat( count_list_illumina ).set { count_list }
+
+process make_joint_plot {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: false
+
+  input:
+  file count_files from count_list.collect()
+
+  output:
+  file("*joint.sam_mismatch_counts.png") into output_joint_plot
 
   """
   #!/usr/bin/env python3
+  import sys
+  sys.path.append('${params.pipeline_root}/scripts')
+  from plot_joint_histogram import plot_count_hist
 
-  import seaborn as sns
-  import matplotlib.pyplot as plt
-  from matplotlib.backends.backend_pdf import PdfPages
-  from collections import Counter
-  import pandas as pd
-  import numpy as np
-
-  def plot_sam_dist(sam_file):
-      total_gene_bases = 0
-      total_mismatch_bases = 0
-      num_false_positives = 0
-      num_other = 0
-      num_genes = 0
-      num_mismatches = []
-    
-      f = open(sam_file, 'r')
-      for line in f:
-          if line != "" and line[0].isalpha() and (line.split('\t')[1]=="0" or line.split('\t')[1]=="16"):
-              num = int(line.split('\t')[11].split("NM:i:")[-1])
-              num_mismatches.append(num)
-              total_mismatch_bases += num
-              total_gene_bases += len(line.split('\t')[9])
-              num_genes += 1
-          elif line != "" and line[0].isalpha() and line.split('\t')[1]!="4":
-              num_false_positives += 1
-              num_genes += 1
-              
-      f.close()
-      if total_gene_bases == 0:
-          total_gene_bases = 1
-      print("False positive gene rate: %d/%d = %f" %(num_false_positives, num_genes, float(num_false_positives)/num_genes*100))
-      print("Estimated per base accuracy: 1 - %d/%d = %f" %(total_mismatch_bases, total_gene_bases, (1-(float(total_mismatch_bases)/total_gene_bases))*100))                
-      print(Counter(num_mismatches))
-      plt.rcParams['figure.figsize'] = 10,6
-      fig, ax = plt.subplots()
-      sns.distplot(num_mismatches, bins=range(0, max(num_mismatches)+2, 1), kde=False)
-      ax.set(title="Distribution of Number of Mismatch Bases in Consensus", xlabel='Number of mismatch bases', ylabel='Frequency')
-      plt.savefig('%s.sam_mismatch_counts.png' %sam_file, transparent=True)
-    
-  plot_sam_dist("${samfile}")
+  s = "${count_files}".split()
+  plot_count_hist(s[0],s[1])
   """
 }

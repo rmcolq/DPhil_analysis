@@ -76,7 +76,8 @@ process pandora_index {
     val num from num_prg
         
     output:
-    set val("${num}"), file("prg.fa"), file("prg.k15.w14.idx"), file("kmer_prgs") into indexed_prgs
+    set val("${num}"), file("prg.fa"), file("prg.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_nano
+    set val("${num}"), file("prg.fa"), file("prg.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_ill
         
     """
     head -n${num} ${pangenome_prg} > prg.fa
@@ -93,7 +94,7 @@ process pandora_map_nano {
   }
   
   input:
-  set val(num), file(prg), file(index), file(kmer_prgs) into indexed_prgs
+  set val(num), file(prg), file(index), file(kmer_prgs) from indexed_prgs_nano
   file reads from nanopore_reads
   
   output:
@@ -114,7 +115,7 @@ process pandora_map_illumina {
   }
 
   input:
-  set val(num), file(prg), file(index), file(kmer_prgs) into indexed_prgs
+  set val(num), file(prg), file(index), file(kmer_prgs) from indexed_prgs_ill
   file reads from illumina_reads
 
   output:

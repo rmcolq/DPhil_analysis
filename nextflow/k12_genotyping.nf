@@ -160,8 +160,7 @@ process pandora_get_ref_vcf {
 
     """
     pandora map -p ${pangenome_prg} -r ${truth_assembly} --genotype
-    gunzip pandora/pandora.consensus.fq.gz
-    sed '/^@/!d;s//>/;N' pandora/pandora.consensus.fq | awk '{print \$1;}' > pandora/pandora_genotyped.ref.fa
+    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora/pandora_genotyped.ref.fa
     """
 }
 
@@ -183,13 +182,7 @@ process simulate_new_ref {
     set file("simulated_vars.vcf"), file("truth.fa") into true_variants
 
     """
-    v=${truth_assembly}
-    if [ \${v: -3} == ".gz" ]
-    then
-      zcat \$v | awk '{print \$1;}'| cut -d "." -f1 > truth.fa
-    else
-      cat \$v | awk '{print \$1;}'| cut -d "." -f1 > truth.fa
-    fi
+    seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa
     bwa index truth.fa
     bwa mem truth.fa ${ref} > out.sam
     python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf
@@ -224,8 +217,7 @@ process pandora_genotype_nanopore {
 
     """
     pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype
-    gunzip pandora/pandora.consensus.fq.gz
-    sed '/^@/!d;s//>/;N' pandora/pandora.consensus.fq | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
+    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
 }
@@ -250,8 +242,7 @@ process pandora_genotype_nanopore_30 {
 
     """
     pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30
-    gunzip pandora/pandora.consensus.fq.gz
-    sed '/^@/!d;s//>/;N' pandora/pandora.consensus.fq | awk '{print \$1;}' > pandora_genotyped_30X.ref.fa
+    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_30X.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
 }
@@ -276,7 +267,7 @@ process nanopolish_index {
     """
 }
 process nanopolish_genotype_nanopore {
-    memory { 64.GB * task.attempt }
+    memory { 32.GB * task.attempt }
     errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
     maxRetries 1
     container {
@@ -284,6 +275,7 @@ process nanopolish_genotype_nanopore {
     }
     cpus 16
     maxForks 5
+    time '1s'
 
     publishDir final_outdir, mode: 'copy', overwrite: false
 
@@ -415,8 +407,7 @@ if (params.illumina_reads_1) {
 
         """
         pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina
-        gunzip pandora/pandora.consensus.fq.gz
-        sed '/^@/!d;s//>/;N' pandora/pandora.consensus.fq | awk '{print \$1;}'> pandora_genotyped_illumina.ref.fa
+        seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
     }

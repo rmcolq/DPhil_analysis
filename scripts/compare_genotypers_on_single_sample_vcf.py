@@ -212,7 +212,7 @@ parser.add_argument('--sample_vcf', type=str,
                     help='VCF of genotyped')
 parser.add_argument('--sample_vcf_ref', type=str,
                     help='Reference FASTA for sample VCF')
-parser.add_argument('--recall_flank', '-fr', type=int, default=5,
+parser.add_argument('--recall_flank', '-fr', type=int, default=9,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')

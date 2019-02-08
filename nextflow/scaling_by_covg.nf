@@ -156,14 +156,19 @@ process make_df {
   sentence=\$(grep "System time (seconds):" ${timeinfo}) 
   stringarray=(\$sentence)
   cputime=\${stringarray[3]}
-  echo \$cputime
+  echo \$systime
+
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  cputime=\${stringarray[3]}
+  echo \$usertime
 
   sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
   stringarray=(\$sentence)
   maxmem=\${stringarray[5]}
   echo \$maxmem
 
-  echo -e "${type}\t${covg}\t\$cputime\t\$maxmem" > out.tsv
+  echo -e "${type}\t${covg}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
   """
 }
 
@@ -185,48 +190,7 @@ process make_plot {
   file("*.png") into output_plot
 
   """
-  #!/usr/bin/env python3
-
-  import seaborn as sns
-  import matplotlib.pyplot as plt
-  from matplotlib.backends.backend_pdf import PdfPages
-  from collections import Counter
-  import pandas as pd
-  import numpy as np
- 
-  def plot_df(tsv_file):
-      df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'covg', 'time', 'max_mem'])
-      df['max_mem_gb'] = df['max_mem']/(1024*1024)
-      plt.rcParams['figure.figsize'] = 10,6
-      fig, ax = plt.subplots()
-
-      ax.grid(b=True)
-      ax.set_axisbelow(b=True)
-      plt.style.use('seaborn-colorblind')
-
-      # Label the axes and title the plot
-      ax.set_xlabel('Coverage', size = 26)
-      ax.set_ylabel('Time(s)', size = 26)
-      
-      sns.lmplot( x="covg", y="time", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      plt.legend(loc='lower right')
-      plt.savefig('scaling_time.png', transparent=True)
-
-      sns.lmplot( x="covg", y="max_mem", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      plt.legend(loc='lower right')
-      ax.set_ylabel('Max Memory (KB)', size = 26)
-      plt.savefig('scaling_mem.png', transparent=True)
-
-      #plt.plot( 'covg', 'time', data=df, marker='o', markerfacecolor='blue', markersize=12, color='blue', linewidth=4)
-      #plt.plot( 'x', 'y2', data=df, marker='', color='olive', linewidth=2)
-      #sns.regplot(x="covg", y="time", color="type", data=df, marker='x')
-      #ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
-      #ax.set_ylabel('Max Memory (KB)')  # we already handled the x-label with ax1
-      #sns.regplot(x="covg", y="max_mem", color="type", data=df, marker='o')
-      #fig.tight_layout()  # otherwise the right y-label is slightly clipped
-      #plt.savefig('scaling.png', transparent=True)
-    
-  plot_df("${data}")
+  python3 ${params.pipeline_root}/scripts/plot_scaling.py --tsv_file ${data} --xvar 'covg' --xlabel "Coverage"
   """
 }
 
