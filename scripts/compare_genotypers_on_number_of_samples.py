@@ -136,13 +136,11 @@ def run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mask1
     syscall(command)
 
 def create_or_append(ultimate_file, data_file):
-    print(ultimate_file, data_file)
     command = ""
     if os.path.isfile(ultimate_file):
         command = ' '.join(['tail -n+2', data_file, '>>', ultimate_file])
     else:
         command = ' '.join(['cp', data_file, ultimate_file])
-    print(command)
     syscall(command)
 
 def append_stats(name):
@@ -266,7 +264,6 @@ unzipped_truths = []
 for truth in index['truth']:
     if truth.endswith(".gz"):
         new_name = truth.split('/')[-1][:-3]
-        print(truth, new_name)
         command = ' '.join(['zcat', truth, '>', new_name])
         syscall(command)
         unzipped_truths.append(new_name)
@@ -276,8 +273,6 @@ index['unzipped_truth'] = unzipped_truths
 
 names = []
 for pair in itertools.combinations(index.itertuples(), 2):
-    print(pair[0])
-    print(pair[1])
     (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = pair[0]
     (num2, id2, zipped_truth2, sample_dir2, mask2, truth2) = pair[1] 
     run_dnadiff(truth1, truth2)
@@ -309,5 +304,5 @@ for name in names:
     dfs.append(minos_to_df(name))
 
 print("plot graphs")
-plot_graphs(dfs_dict)
+plot_graphs(dfs)
 

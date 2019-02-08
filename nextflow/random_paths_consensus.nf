@@ -51,11 +51,12 @@ process pandora_random_paths {
   val num_paths from params.number_paths
 
   output:
-  file("random_paths.fa") into random_paths_output
+  file("random_paths_filtered.fa") into random_paths_output
 
   """
   pandora random_path ${prg} ${num_paths}
   gunzip random_paths.fa.gz
+  awk '!/^>/ { next } { getline seq } length(seq) >= 200 { print $0 "\n" seq }' random_paths.fa > random_paths_filtered.fa
   """
 }
  
@@ -160,9 +161,9 @@ if (!pandora_idx.exists()) {
 }
 
 process pandora_map_path_nano {
-  memory { 3.GB * task.attempt }
-  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
-  maxRetries 1
+  memory { 4.GB * task.attempt }
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -175,7 +176,7 @@ process pandora_map_path_nano {
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora_results.fq"), file("${path}") into pandora_output_path_nano
+  set file("pandora_result.fq"), file("${path}") into pandora_output_path_nano
   
   """
   pandora map -p ${prg} -r ${reads} --genome_size 1000 --max_covg 25000
@@ -197,9 +198,9 @@ process pandora_map_path_nano {
 } 
 
 process pandora_map_path_illumina {
-  memory { 3.GB * task.attempt }
-  errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
-  maxRetries 1
+  memory { 4.GB * task.attempt }
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -212,7 +213,7 @@ process pandora_map_path_illumina {
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora_results.fq"), file("${path}") into pandora_output_path_illumina
+  set file("pandora_result.fq"), file("${path}") into pandora_output_path_illumina
   
   """
   pandora map -p ${prg} -r ${reads} --illumina --genome_size 1000
