@@ -78,6 +78,18 @@ def filter_vcf_by_ref_pos(in_vcf, ref_fasta, flank_size):
     out_vcf_bad.close()
     out_vcf_good.close()
 
+def restrict_to_snps(in_vcf, max_length=1):
+    vcf_reader = vcf.Reader(open(in_vcf, 'r'))
+    out_vcf = vcf.Writer(open(in_vcf.replace(".vcf",".filtered.vcf"),'w'), vcf_reader)
+
+    for record in vcf_reader:
+        if len(record.REF) > max_length:
+            continue
+        for alt in record.ALT:
+            if len(alt) > max_length:
+                continue
+        out_vcf.write_record(record)
+
 def run_dnadiff(ref, query):
     '''Runs dnadiff to map ref fasta to query fasta and create a SNPs file of differences.'''
     dnadiff_binary = find_binary('dnadiff')
@@ -88,10 +100,17 @@ def run_dnadiff(ref, query):
         if not f.endswith('.snps'):
             os.unlink(f)
 
-def run_compare(snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, name, flank):
+def run_compare(snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, max_var_length):
     '''Runs minos command to compare pair of VCFs to dnadiff snps file'''
+    filtered_vcf1 = vcf1
+    filtered_vcf2 = vcf2
+    if max_var_length > 0:
+        restrict_to_snps(vcf1, max_var_length)
+        restrict_to_snps(vcf2, max_var_length)
+        filtered_vcf1 = vcf1.replace(".vcf",".filtered.vcf")
+        filtered_vcf2 = vcf2.replace(".vcf",".filtered.vcf")
     minos_binary = find_binary('minos')
-    command = ' '.join([minos_binary, 'check_snps', snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, "tmp.compare." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches", "--max_soft_clipped", str(5)])
+    command = ' '.join([minos_binary, 'check_snps', snps_file, truth1, truth2, filtered_vcf1, filtered_vcf2, vcf_ref, "tmp.compare." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches", "--max_soft_clipped", str(5)])
     syscall(command)
 
 def run_individual(truth, vcf, vcf_ref, name, flank):
@@ -137,7 +156,7 @@ def find_diffs(vcf_file1, vcf_file2):
             out_vcf1.write_record(record1)
             out_vcf2.write_record(record2)
 
-def compare_results(result_dir, recall_flank, precision_flank):
+def compare_results(result_dir, recall_flank, precision_flank, max_var_length):
     refs = glob.glob("%s/genomes*.fa" %result_dir)
     vcfs = glob.glob("%s/pandora_illumina*.vcf" %result_dir)
     vcf_refs = glob.glob("%s/pandora_illumina*.vcf_ref.fa" %result_dir)
@@ -161,7 +180,7 @@ def compare_results(result_dir, recall_flank, precision_flank):
             #results_df[id1][id1] = np.nan
         else:
             comp_name = "%s_%s" %(id1, id2)
-            run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref1, comp_name, recall_flank)
+            run_compare("tmp.dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref1, comp_name, recall_flank, max_var_length)
             r = minos_stat_recall(comp_name)
             results_df[id1][id2] = r
             #results_df[id2][id1] = np.nan
@@ -185,12 +204,12 @@ def compare_results(result_dir, recall_flank, precision_flank):
     results_df[mask] = 0
     print(results_df)
 
-    fig, ax = plt.subplots()
-    fig.set_size_inches(16, 16)
-    plt.style.use('seaborn-colorblind')
-    sns.heatmap(results_df, mask=mask, cmap='RdYlGn_r', linewidths=0.5, annot=True, square=True, annot_kws={"size":16}, fmt='2g')
-    sns.set_context("notebook", font_scale=2.5, rc={"lines.linewidth": 2.5})
-    plt.savefig('heatmap.png', transparent=True)
+    #fig, ax = plt.subplots()
+    #fig.set_size_inches(16, 16)
+    #plt.style.use('seaborn-colorblind')
+    #sns.heatmap(results_df, mask=mask, cmap='RdYlGn_r', linewidths=0.5, annot=True, square=True, annot_kws={"size":16}, fmt='2g')
+    #sns.set_context("notebook", font_scale=2.5, rc={"lines.linewidth": 2.5})
+    #plt.savefig('heatmap.png', transparent=True)
 
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
 parser.add_argument('--dir', '-d', type=str,
@@ -199,6 +218,8 @@ parser.add_argument('--recall_flank', '-fr', type=int, default=15,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when evaluating vcf alleles')
+parser.add_argument('--max_var_length', type=int, default=0,
+                    help='Restricts to VCF alleles with length < max_var_length for recall')
 args = parser.parse_args()
 
-compare_results(args.dir, args.recall_flank, args.precision_flank)
+compare_results(args.dir, args.recall_flank, args.precision_flank, args.max_var_length)

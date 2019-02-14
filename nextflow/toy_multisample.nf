@@ -237,8 +237,8 @@ process pandora_compare_illumina {
 }
 
 process minos_evaluate_recall {
-   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-   maxRetries 2
+   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+   maxRetries 1
    memory {1.4.GB * task.attempt}
    container {
        'shub://rmcolq/Singularity_recipes:minos'
@@ -251,7 +251,6 @@ process minos_evaluate_recall {
    file ref_files from truth_genomes.collect()
 
    output:
-   file('*.png')
 
    """
    python3 ${params.pipeline_root}/scripts/compare_toy_genomes.py  --dir "."
