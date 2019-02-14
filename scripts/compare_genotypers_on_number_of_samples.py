@@ -172,6 +172,7 @@ def append_stats_y(genotyper_name, run_name):
     create_or_append(genotyper_name + ".y.stats.tsv", "tmp.compare." + run_name + ".stats.tsv")
 
 def minos_to_df(name):
+    print("Construct dataframe for", name)
     y_gt = pd.read_table(name + ".y.gt_conf_hist.tsv")
     y_stats = pd.read_table(name + ".y.stats.tsv")
 
@@ -196,8 +197,8 @@ def minos_to_df(name):
         sum_tp = sum(x_tp[x_tp['GT_CONF'] >= confidence]['Count'])
         if sum_fp > 0 and sum_tp > 0:
             xscat.append(sum_fp/float(sum_fp + sum_tp))
-            if len(yscat) > 2 and (yscat[-1] < 0.6 < yscat[-2] or yscat[-2] < 0.6 < yscat[-1]):
-                print(name, xscat[-1], yscat[-1])
+            #if len(yscat) > 2 and (yscat[-1] < 0.6 < yscat[-2] or yscat[-2] < 0.6 < yscat[-1]):
+            #    print(name, xscat[-1], yscat[-1])
         else:
             xscat.append(float(0))
 
@@ -205,13 +206,15 @@ def minos_to_df(name):
     df['yscat'] = yscat
     df['xscat'] = xscat
     df['name'] = name
+    print(df)
+    print("Save df to file")
     pk.dump(df, open(name + '.pkl', 'wb'))
     if len(yscat) > 0:
         print("Max", name, max(yscat))
-    print(df)
     return df
 
 def plot_graphs(items):
+    print("Plot", len(items), "dataframes on graph")
     for i in range(5):
         # Define plot
         fig, ax = plt.subplots()
@@ -225,7 +228,7 @@ def plot_graphs(items):
         ax.set_xlabel('Number FPs/Number Genotyped', size=26)
         ax.set_ylabel('Fraction of dnadiff SNPs discoverable from VCFs', size=26)
         # ax.set_title('Precision Recall', size = 30)
-        plt.xlim(-0.005, 0.05)
+        #plt.xlim(-0.005, 0.05)
 
         # Set colormaps
         colormap_pandora = plt.cm.autumn
@@ -363,8 +366,11 @@ for truth in index['unzipped_truth']:
     
 dfs = []
 for name in names:
-    dfs.append(minos_to_df(name))
+    print("Try to get df for", name)
+    df = minos_to_df(name)
+    dfs.append(df)
+    print("Now have", len(dfs), "dataframes")
 
-print("plot graphs")
+print("Plot graphs")
 plot_graphs(dfs)
 
