@@ -155,12 +155,12 @@ process make_df {
   #!/usr/bin/env bash
   sentence=\$(grep "System time (seconds):" ${timeinfo}) 
   stringarray=(\$sentence)
-  cputime=\${stringarray[3]}
+  systime=\${stringarray[3]}
   echo \$systime
 
   sentence=\$(grep "User time (seconds):" ${timeinfo})
   stringarray=(\$sentence)
-  cputime=\${stringarray[3]}
+  usertime=\${stringarray[3]}
   echo \$usertime
 
   sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})

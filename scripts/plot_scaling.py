@@ -38,4 +38,4 @@ parser.add_argument('--xlabel', type=str,
                     help='X-axis label')
 args = parser.parse_args()
 
-plot_df(args.tsv_file, args.xvar, xlabel)
+plot_df(args.tsv_file, args.xvar, args.xlabel)

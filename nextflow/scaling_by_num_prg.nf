@@ -61,23 +61,24 @@ if (!final_outdir.exists()) {
     exit 1, "Final out directory not found: ${params.final_outdir} -- aborting"
 }
 
-num_prg = Channel.from( 1..30 ).map { 100 * it }
+num_prg = Channel.from( 1..22 ).map { 1000 * it }
 
 process pandora_index {
     memory { 20.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-    maxRetries 3
+    errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
+    maxRetries 1
     container {
       'shub://rmcolq/pandora:pandora'
     }
+    time '3s' 
         
     input:
     file pangenome_prg
     val num from num_prg
         
     output:
-    set val("${num}"), file("prg.fa"), file("prg.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_nano
-    set val("${num}"), file("prg.fa"), file("prg.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_ill
+    set val("${num}"), file("prg.fa"), file("prg.fa.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_nano
+    set val("${num}"), file("prg.fa"), file("prg.fa.k15.w14.idx"), file("kmer_prgs") into indexed_prgs_ill
         
     """
     head -n${num} ${pangenome_prg} > prg.fa
@@ -86,7 +87,7 @@ process pandora_index {
 }
 
 process pandora_map_nano {
-  memory { 40.GB * task.attempt }
+  memory { 8.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -101,13 +102,13 @@ process pandora_map_nano {
   set val("Nanopore"), val("${num}"), file("timeinfo.txt") into pandora_output_nano
   
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${covg} &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg 30 &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
   """
 } 
 
 process pandora_map_illumina {
-  memory { 55.GB * task.attempt }
+  memory { 12.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -122,7 +123,7 @@ process pandora_map_illumina {
   set val("Illumina"), val("${num}"), file("timeinfo.txt") into pandora_output_illumina
 
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${covg} --illumina &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg 30 --illumina &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
   """
 }
@@ -144,15 +145,20 @@ process make_df {
   #!/usr/bin/env bash
   sentence=\$(grep "System time (seconds):" ${timeinfo}) 
   stringarray=(\$sentence)
-  cputime=\${stringarray[3]}
-  echo \$cputime
+  systime=\${stringarray[3]}
+  echo \$systime
+
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  usertime=\${stringarray[3]}
+  echo \$usertime
 
   sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
   stringarray=(\$sentence)
   maxmem=\${stringarray[5]}
   echo \$maxmem
 
-  echo -e "${type}\t${num_prgs}\t\$cputime\t\$maxmem" > out.tsv
+  echo -e "${type}\t${num_prgs}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
   """
 }
 
@@ -174,40 +180,6 @@ process make_plot {
   file("*.png") into output_plot
 
   """
-  #!/usr/bin/env python3
-
-  import seaborn as sns
-  import matplotlib.pyplot as plt
-  from matplotlib.backends.backend_pdf import PdfPages
-  from collections import Counter
-  import pandas as pd
-  import numpy as np
- 
-  def plot_df(tsv_file):
-      df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'num_prgs', 'time', 'max_mem'])
-      df['max_mem_gb'] = df['max_mem']/(1024*1024)
-      df['num_prgs'] = df['num_prgs']/2
-      plt.rcParams['figure.figsize'] = 10,6
-      fig, ax = plt.subplots()
-
-      ax.grid(b=True)
-      ax.set_axisbelow(b=True)
-      plt.style.use('seaborn-colorblind')
-
-      # Label the axes and title the plot
-      ax.set_xlabel('Number of Local Graphs in Index', size = 26)
-      ax.set_ylabel('Time(s)', size = 26)
-      
-      sns.lmplot( x="num_prgs", y="time", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      plt.legend(loc='lower right')
-      plt.savefig('scaling_time.png', transparent=True)
-
-      sns.lmplot( x="num_prgs", y="max_mem", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      plt.legend(loc='lower right')
-      ax.set_ylabel('Max Memory (KB)', size = 26)
-      plt.savefig('scaling_mem.png', transparent=True)
-
-  plot_df("${data}")
+  python3 ${params.pipeline_root}/scripts/plot_scaling.py --tsv_file ${data} --xvar 'num_prgs' --xlabel "Number of Local Graphs in PanRG"
   """
 }
-

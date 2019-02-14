@@ -56,7 +56,7 @@ process pandora_random_paths {
   """
   pandora random_path ${prg} ${num_paths}
   gunzip random_paths.fa.gz
-  awk '!/^>/ { next } { getline seq } length(seq) >= 200 { print $0 "\n" seq }' random_paths.fa > random_paths_filtered.fa
+  awk '!/^>/ { next } { getline seq } length(seq) >= 200 { print \$0 "\\n" seq }' random_paths.fa > random_paths_filtered.fa
   """
 }
  
@@ -187,7 +187,7 @@ process pandora_map_path_nano {
   fi
 
   v=\$(head -n1 ${path})
-  zgrep -A3 $(echo ${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
+  zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
   if [[ -s pandora_result.fq ]] ; then
   echo "pandora/pandora.consensus.fq.gz has results."
   else
@@ -224,7 +224,7 @@ process pandora_map_path_illumina {
   fi
 
   v=\$(head -n1 ${path})
-  zgrep -A3 $(echo ${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
+  zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
   if [[ -s pandora_result.fq ]] ; then
   echo "pandora/pandora.consensus.fq.gz has results."
   else

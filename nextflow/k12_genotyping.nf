@@ -126,7 +126,7 @@ if (!pandora_idx.exists()) {
           'shub://rmcolq/pandora:pandora'
         }
 
-        publishDir pangenome_prg.parent, mode: 'copy', overwrite: false 
+        publishDir pangenome_prg.parent, mode: 'copy', overwrite: true
 
         input:
         file pangenome_prg
@@ -185,7 +185,7 @@ process simulate_new_ref {
     seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa
     bwa index truth.fa
     bwa mem truth.fa ${ref} > out.sam
-    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf
+    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf --prob .05
     cat tmp.simulated_vars.vcf | grep "#" > simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep -v "#" | sort -k2 -n >> simulated_vars.vcf
     python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf simulated_vars.vcf
@@ -204,7 +204,7 @@ process pandora_genotype_nanopore {
       'shub://rmcolq/pandora:pandora'
     }
 
-    publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
     file pangenome_prg
@@ -229,7 +229,7 @@ process pandora_genotype_nanopore_30 {
       'shub://rmcolq/pandora:pandora'
     }
  
-    publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
     file pangenome_prg
@@ -275,9 +275,9 @@ process nanopolish_genotype_nanopore {
     }
     cpus 16
     maxForks 5
-    time '1s'
+    time '2d'
 
-    publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
     file nanopore_reads
@@ -335,10 +335,10 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-        cpus 8
+        cpus 1
         maxForks 5
 
-        publishDir final_outdir, mode: 'copy', overwrite: false
+        publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -349,7 +349,7 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
 
         """
-        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2}
+        snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2}
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -366,9 +366,9 @@ else if (params.illumina_reads_1) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-        cpus 8
+        cpus 1
 
-        publishDir final_outdir, mode: 'copy', overwrite: false
+        publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -378,7 +378,17 @@ else if (params.illumina_reads_1) {
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
 
         """
-        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --se ${illumina_reads_1}
+        v=${illumina_reads_1}
+        if [ \${v: -3} == ".gz" ]
+        then
+        t=\${v::-3}
+        zcat \$v > \$t
+        else
+        t=\$v
+        fi
+
+        mkdir snippy_tmp
+        snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -387,14 +397,14 @@ else if (params.illumina_reads_1) {
 }
 if (params.illumina_reads_1) {
     process pandora_genotype_illumina {
-        memory { 40.GB * task.attempt }
+        memory { 55.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
         maxRetries 3
         container {
           'shub://rmcolq/pandora:pandora'
         }
 
-        publishDir final_outdir, mode: 'copy', overwrite: false
+        publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file pangenome_prg
@@ -424,8 +434,7 @@ if (params.nanopore_reads) {
 }
 nanopore_channels.concat(illumina_channels).set { all_vcfs }
 
-if (params.mask) {
-    process compare_vcfs {
+process compare_vcfs {
         errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
         maxRetries 2
         memory {1.4.GB * task.attempt}
@@ -433,31 +442,7 @@ if (params.mask) {
               'shub://rmcolq/Singularity_recipes:minos'
             }
 
-        publishDir final_outdir, mode: 'copy', overwrite: false
-
-        input:
-        set(file(truth_vcf), file(truth_vcf_ref)) from true_variants
-        set(file(vcf), file(vcf_ref)) from all_vcfs
-        file mask
-
-        output:
-        file('*.pkl') into df
-
-        """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --mask ${mask}
-        """
-    }
-}
-else {
-    process compare_vcfs {
-        errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-        maxRetries 2
-        memory {1.4.GB * task.attempt}
-        container {
-              'shub://rmcolq/Singularity_recipes:minos'
-            }
-
-        publishDir final_outdir, mode: 'copy', overwrite: false
+        publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         set(file(truth_vcf), file(truth_vcf_ref)) from true_variants
@@ -469,10 +454,7 @@ else {
         """
         python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref}
         """
-    }
 }
-
-dfs = df.collectFile(name: 'all.pkl')
 
 process make_graph {
     errorStrategy {task.attempt < 2 ? 'retry' : 'fail'}
@@ -482,10 +464,10 @@ process make_graph {
           'shub://rmcolq/Singularity_recipes:minos'
         }
 
-    publishDir final_outdir, mode: 'copy', overwrite: false
+    publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
-    file 'all.pkl' from dfs
+    file '*.pkl' from df.collect()
 
     output:
     'roc*.png'
@@ -498,14 +480,16 @@ process make_graph {
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
     import operator
+    import glob
 
     def loadall(filename):
-        with open(filename, "rb") as f:
-            while True:
-                try:
-                    yield pickle.load(f)
-                except EOFError:
-                    break
+        all = []
+        pkl_files = glob.glob("*.pkl")
+        for pk in pkl_files:
+            print(pk)
+            with open(pk, 'rb') as f:
+                all.append(pickle.load(f))
+        return all
 
     items = loadall('all.pkl')
 
@@ -520,7 +504,7 @@ process make_graph {
 
         # Label the axes and title the plot
         ax.set_xlabel('Number FPs/Number Genotyped', size=26)
-        ax.set_ylabel('Fraction of dnadiff SNPs discoverable from VCFs', size=26)
+        ax.set_ylabel('Recall', size=26)
         # ax.set_title('Precision Recall', size = 30)
 
         # Set colormaps

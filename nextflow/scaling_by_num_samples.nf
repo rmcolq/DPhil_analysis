@@ -91,9 +91,9 @@ num_samples_nano = Channel.from( 2..15 )
 num_samples_illu = Channel.from( 2..15 )
 
 process pandora_compare_nano {
-  memory { 40.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
+  memory { 20.GB * task.attempt }
+  errorStrategy {task.attempt < 6 ? 'retry' : 'fail'}
+  maxRetries 6
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -116,9 +116,9 @@ process pandora_compare_nano {
 } 
 
 process pandora_compare_illumina {
-  memory { 55.GB * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
+  memory { 24.GB * task.attempt }
+  errorStrategy {task.attempt < 6 ? 'retry' : 'fail'}
+  maxRetries 6
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -157,15 +157,20 @@ process make_df {
   #!/usr/bin/env bash
   sentence=\$(grep "System time (seconds):" ${timeinfo}) 
   stringarray=(\$sentence)
-  cputime=\${stringarray[3]}
-  echo \$cputime
+  systime=\${stringarray[3]}
+  echo \$systime
+
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  usertime=\${stringarray[3]}
+  echo \$usertime
 
   sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
   stringarray=(\$sentence)
   maxmem=\${stringarray[5]}
   echo \$maxmem
 
-  echo -e "${type}\t${num_samples}\t\$cputime\t\$maxmem" > out.tsv
+  echo -e "${type}\t${num_samples}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
   """
 }
 
@@ -187,41 +192,6 @@ process make_plot {
   file("*.png") into output_plot
 
   """
-  #!/usr/bin/env python3
-
-  import seaborn as sns
-  import matplotlib.pyplot as plt
-  from matplotlib.backends.backend_pdf import PdfPages
-  from collections import Counter
-  import pandas as pd
-  import numpy as np
- 
-  def plot_df(tsv_file):
-      df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'num_samples', 'time', 'max_mem'])
-      df['max_mem_gb'] = df['max_mem']/(1024*1024)
-      plt.rcParams['figure.figsize'] = 10,6
-      fig, ax = plt.subplots()
-
-      ax.grid(b=True)
-      ax.set_axisbelow(b=True)
-      plt.style.use('seaborn-colorblind')
-
-      # Label the axes and title the plot
-      ax.set_xlabel('Number of Samples', size = 26)
-      ax.set_ylabel('Time(s)', size = 26)
-      
-      g = sns.lmplot( x="num_samples", y="time", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      g = (g.set_axis_labels("Number of Samples", "Time (s)")
-      plt.legend(loc='lower right')
-      plt.savefig('scaling_time.png', transparent=True)
-
-      g = sns.lmplot( x="num_samples", y="max_mem_gb", data=df, fit_reg=False, hue='type', legend=False, palette="colorblind")
-      g = (g.set_axis_labels("Number of Samples", "Max Memory (GB)")
-      plt.legend(loc='lower right')
-      ax.set_ylabel('Max Memory (GB)', size = 26)
-      plt.savefig('scaling_mem.png', transparent=True)
-
-  plot_df("${data}")
+  python3 ${params.pipeline_root}/scripts/plot_scaling.py --tsv_file ${data} --xvar 'num_samples' --xlabel "Number of samples compared"
   """
 }
-

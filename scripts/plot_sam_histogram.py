@@ -2,6 +2,8 @@
 
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
 from matplotlib.backends.backend_pdf import PdfPages
 from collections import Counter
 import pandas as pd
@@ -11,11 +13,13 @@ import argparse
 def get_nums_from_cigar(cigar):
     start = 0
     numbers = []
+    letters = []
     for end in range(len(cigar)):
         if cigar[end].isalpha():
             numbers.append(int(cigar[start:end]))
+            letters.append(cigar[end])
             start = end+1
-    return numbers
+    return numbers, letters
 
 def plot_sam_dist(sam_file, out_prefix):
     total_gene_bases = 0
@@ -25,6 +29,8 @@ def plot_sam_dist(sam_file, out_prefix):
     num_genes = 0
     num_mismatches = []
     lengths = []
+    indel = []
+    largest_indel = []
 
     f = open(sam_file, 'r')
     all_names = []
@@ -45,7 +51,26 @@ def plot_sam_dist(sam_file, out_prefix):
         elif line.split('\t')[1]=="0" or line.split('\t')[1]=="16":
             num = int(line.split('\t')[11].split("NM:i:")[-1])
             num_mismatches.append(num)
-            lengths.append(sum(get_nums_from_cigar(line.split('\t')[5])))
+            cigar = line.split('\t')[5]
+            nums, letters = get_nums_from_cigar(cigar)
+            lengths.append(sum(nums))
+            largest = 0
+            for i,letter in enumerate(letters):
+                if letter == "D" and nums[i] > abs(largest):
+                    largest = nums[i]
+                elif letter == "I" and nums[i] > abs(largest):
+                    largest = nums[i]
+            largest_indel.append(largest)
+            #if num > 0 and largest > 0:
+            #    largest_indel.append(largest/num)
+            #else:
+            #    largest_indel.append(0)
+            if "D" in cigar:
+                indel.append("deletion")
+            elif "I" in cigar:
+                indel.append("insertion")
+            else:
+                indel.append("match")
             total_mismatch_bases += num
             total_gene_bases += len(line.split('\t')[9])
             num_genes += 1
@@ -68,11 +93,37 @@ def plot_sam_dist(sam_file, out_prefix):
     plt.savefig('%s.sam_mismatch_counts.png' %out_prefix, transparent=True)
 
     fig, ax = plt.subplots()
-    plt.scatter(lengths, num_mismatches)
+    df = pd.DataFrame()
+    df['lengths']=lengths
+    df['num_mismatches']=num_mismatches
+    df['indel']=indel
+    df['largest_indel'] = largest_indel
+    
+    uniq=['match','insertion','deletion']
+    z = range(1,len(uniq))
+    hot = plt.get_cmap('hot')
+    cNorm  = colors.Normalize(vmin=0, vmax=len(uniq))
+    scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=hot)
+
+    # Plot each scatter
+    for i in range(len(uniq)):
+        indx = df['indel'] == uniq[i]
+        plt.scatter(df['lengths'][indx], df['num_mismatches'][indx], c=scalarMap.to_rgba(i), label=uniq[i])
     ax.set(xlabel='Length of sequence', ylabel='Number of mismatch bases')
+    plt.legend(loc='upper left')
     plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
     plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
     plt.savefig('%s.sam_length_scatter.png' %out_prefix, transparent=True)
+
+    fig, ax = plt.subplots()
+    s = plt.scatter(df['lengths'], df['num_mismatches'], c=df['largest_indel'], cmap='hot')
+    ax.set(xlabel='Length of sequence', ylabel='Number of mismatch bases')
+    max_diffs = max(df['num_mismatches'].values)
+    s.set_clim([0,max_diffs])
+    cb = fig.colorbar(s)
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    plt.savefig('%s.sam_length_scatter2.png' %out_prefix, transparent=True)
 
     with open('%s_list.txt' %out_prefix, 'w') as f:
         f.write("%s\t" % out_prefix)

@@ -51,3 +51,56 @@ cp /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/pandora
 cp /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/pandora_compare/$run/pandora_multisample.vcf_ref.fa /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/pandora_genotyped_$run.ref.fa
 done
 
+## Some snippy vcf files are empty and so these will cause a fail
+#for f in /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_*.vcf ; do echo $f; grep -v "#" $f | wc -l; done
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_CP010148.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_CP010163.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_CP010200.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_CP010219.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_CP010237.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_NC_013361.1.vcf
+#4
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_NC_017628.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_NZ_AP014857.1.vcf
+#3
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_NZ_CM000662.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/CFT073/snippy_NZ_CP012140.1.vcf
+#4
+#[rmcolq@hh-yoda-08-01 DPhil_analysis]$ for f in /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_*.vcf ; do echo $f; grep -v "#" $f | wc -l; done
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_CP010148.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_CP010163.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_CP010200.1.vcf
+#8
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_CP010219.1.vcf
+#1
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_CP010237.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_NC_013361.1.vcf
+#14
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_NC_017628.1.vcf
+#4
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_NZ_AP014857.1.vcf
+#0
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_NZ_CM000662.1.vcf
+#8
+#/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping/RHB11-C04/snippy_NZ_CP012140.1.vcf
+#8
+## REMOVED THESE VCFS
+
+## Make tsv of samples
+## Fix dots in vcf
+for f in analysis/4_way_roc/genotyping/*/*.ref.fa; do cat $f | cut -d "." -f1 > tmp.fa; mv tmp.fa $f; done
+
+## Make ROC
+mkdir analysis/4_way_roc/work
+cd analysis/4_way_roc/work
+bsub.py 20.0 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/logs/4_way_roc singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-Singularity_recipes-minos.img python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/compare_genotypers_on_number_of_samples.py --sample_tsv /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyped_samples.tsv
