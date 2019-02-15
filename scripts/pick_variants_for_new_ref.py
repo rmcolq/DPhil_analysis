@@ -12,7 +12,7 @@ def rev_comp(s):
     comp = ''.join(letters)
     return comp[::-1]
 
-def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_var_size, p):
+def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_var_size, p, w):
     vcf_reader = vcf.Reader(open(vcf_file, 'r'))
     vcf_writer = vcf.Writer(open("tmp." + out_vcf, 'w'), vcf_reader)
     record_dict = SeqIO.to_dict(SeqIO.parse(vcf_ref, "fasta"))
@@ -27,6 +27,7 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_
         and (last_record == None \
              or record.CHROM != last_record.CHROM \
              or record.POS > last_record.POS + len(last_record.REF)) \
+        and w < record.POS < len(str(record_dict[record.CHROM].seq))-w \
         and np.random.binomial(n, p) == 1:
             chrom_seq = str(record_dict[record.CHROM].seq)
             ref_seq = chrom_seq[record.POS-1:record.POS+len(record.REF)-1]
@@ -82,6 +83,8 @@ parser.add_argument('--min_var_size', type=int, default=1,
                     help='Minimum length of reference variants to potentially include')
 parser.add_argument('--prob', type=float, default=.1,
                     help='Fraction of compatible random variants to include in output VCF')
+parser.add_argument('--skip_flank', type=int, default=14,
+                    help='Number of bases to skip in VCF reference chromosomes when choosing variants')
 args = parser.parse_args()
 
-simulate_ref(args.in_vcf, args.vcf_ref, args.sam, args.ref, args.out_vcf, args.min_var_size, args.max_var_size, args.prob)
+simulate_ref(args.in_vcf, args.vcf_ref, args.sam, args.ref, args.out_vcf, args.min_var_size, args.max_var_size, args.prob, args.skip_flank)

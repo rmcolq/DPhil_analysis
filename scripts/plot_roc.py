@@ -13,12 +13,12 @@ def load_dfs(directory):
     dfs = []
     files = glob.glob("%s/*.csv" %directory)
     for f in files:
-        df = pd.read_csv(f)
+        df = pd.read_csv(f, index_col=0)
         print(df)
         dfs.append(df)
     return dfs
 
-def plot_graphs(items):
+def plot_graphs(items, x_max, y_label):
     for i in range(5):
         # Define plot
         fig, ax = plt.subplots()
@@ -30,7 +30,9 @@ def plot_graphs(items):
 
         # Label the axes and title the plot
         ax.set_xlabel('Number FPs/Number Genotyped', size=26)
-        ax.set_ylabel('Fraction of dnadiff SNPs discoverable from VCFs', size=26)
+        ax.set_ylabel(y_label, size=26)
+        if x_max > 0:
+            plt.xlim(-0.0005, x_max)
 
         # Set colormaps
         colormap_pandora = plt.cm.autumn
@@ -42,6 +44,10 @@ def plot_graphs(items):
         # Make a scatter plot
         for x in items:
             if len(x['name'].values) > 0:
+                if x['name'].values[0].startswith("pandora_genotyped_full"):
+                    x['name'] = "pandora_genotyped_nanopore_full"
+                elif x['name'].values[0].startswith("pandora_genotyped_30"):
+                    x['name'] = "pandora_genotyped_nanopore_30"
                 print("add df", x['name'].values[0], "to graph")
                 if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall"):
                     col = colormap_pandora(0)
@@ -77,7 +83,11 @@ def plot_graphs(items):
 parser = argparse.ArgumentParser(description='Plots all csv dataframes on axes')
 parser.add_argument('--directory', type=str, default=".",
                     help='Directory containing CSV files')
+parser.add_argument('--x_max', type=float, default=0,
+                    help='Maximum x-axis')
+parser.add_argument('--y_label', type=str, default='Fraction of dnadiff SNPs discoverable from VCFs',
+                    help='Label for y axis')
 args = parser.parse_args()
 
 dfs = load_dfs(args.directory)
-plot_graphs(dfs)
+plot_graphs(dfs, args.x_max, args.y_label)

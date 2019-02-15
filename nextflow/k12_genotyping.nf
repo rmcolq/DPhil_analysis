@@ -289,16 +289,26 @@ process nanopolish_genotype_nanopore {
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
 
     """
+    v=${nanopore_reads}
+    if [ \${v: -3} == ".gz" ]
+    then
+    t=\${v::-3}
+    zcat \$v | head -n600000 > \$t
+    else
+    zcat \$v | head -n600000 > reads.tmp
+    mv reads.tmp \$v
+    t=\$v
+    fi
+
     bwa index ${reference_assembly}
-    bwa mem -x ont2d -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
-    #minimap2 -ax map-ont --splice-flank=no --secondary=no -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
+    bwa mem -x ont2d -t 8 ${reference_assembly} \$t | samtools sort -o reads.sorted.bam -T reads.tmp
     samtools index reads.sorted.bam
     mkdir -p nanopolish.results/vcf
     python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
     nanopolish variants \
       -t 8 \
       -w {1} \
-      --reads ${nanopore_reads} \
+      --reads \$t \
       --bam reads.sorted.bam \
       --genome ${reference_assembly} \
       -o nanopolish.results/vcf/nanopolish.{1}.vcf \
@@ -366,7 +376,7 @@ else if (params.illumina_reads_1) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-        cpus 1
+        cpus 8
 
         publishDir final_outdir, mode: 'copy', overwrite: true
 
@@ -382,8 +392,10 @@ else if (params.illumina_reads_1) {
         if [ \${v: -3} == ".gz" ]
         then
         t=\${v::-3}
-        zcat \$v > \$t
+        zcat \$v | head -n19200000 > \$t
         else
+        zcat \$v | head -n19200000 > reads.tmp
+        mv reads.tmp \$v
         t=\$v
         fi
 
@@ -452,7 +464,7 @@ process compare_vcfs {
         file('*.csv') into df
 
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref}
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --max_var_length 11
         """
 }
 
@@ -473,6 +485,6 @@ process make_graph {
     'roc*.png'
 
     """
-    python3 ${params.pipeline_root}/scripts/plot_roc.py
+    python3 ${params.pipeline_root}/scripts/plot_roc.py --x_max 0.008 --y_label "Recall"
     """
 }
