@@ -185,7 +185,7 @@ process simulate_new_ref {
     seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa
     bwa index truth.fa
     bwa mem truth.fa ${ref} > out.sam
-    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf --prob .05
+    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf --prob .1
     cat tmp.simulated_vars.vcf | grep "#" > simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep -v "#" | sort -k2 -n >> simulated_vars.vcf
     python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf simulated_vars.vcf
@@ -216,7 +216,7 @@ process pandora_genotype_nanopore {
     set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
 
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --min_diff_covg_gt 15 
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
@@ -241,7 +241,7 @@ process pandora_genotype_nanopore_30 {
     set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
 
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --min_diff_covg_gt 1
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_30X.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
@@ -260,10 +260,21 @@ process nanopolish_index {
     file albacore_summary
 
     output:
-    set file("${nanopore_reads}.index*") into nanopolish_index
+    set file("${nanopore_reads}.*") into nanopolish_index
 
     """
-    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} ${nanopore_reads}
+    v=${nanopore_reads}
+    if [ \${v: -3} == ".gz" ]
+    then
+    t=\${v::-3}
+    zcat \$v | head -n600000 > \$t
+    else
+    zcat \$v | head -n600000 > reads.tmp
+    mv reads.tmp \$v
+    t=\$v
+    fi
+
+    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} \$t
     """
 }
 process nanopolish_genotype_nanopore {
@@ -293,10 +304,7 @@ process nanopolish_genotype_nanopore {
     if [ \${v: -3} == ".gz" ]
     then
     t=\${v::-3}
-    zcat \$v | head -n600000 > \$t
     else
-    zcat \$v | head -n600000 > reads.tmp
-    mv reads.tmp \$v
     t=\$v
     fi
 
@@ -428,7 +436,7 @@ if (params.illumina_reads_1) {
         set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
 
         """
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina
+        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --min_diff_covg_gt 60
         seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
