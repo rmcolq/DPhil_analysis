@@ -33,7 +33,7 @@ def syscall(command, allow_fail=False):
     print(completed_process.stdout)
     return completed_process
 
-def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name, flank, mask, max_var_length=0):
+def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name, flank, mask, max_var_length=0, exclude_ref_alleles=False):
     '''Runs minos command to evaluate how many variants from truth vcf are called in query vcf'''
     filtered_truth_vcf = truth_vcf
     filtered_query_vcf = query_vcf
@@ -43,9 +43,11 @@ def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name
         filtered_truth_vcf = truth_vcf.replace(".vcf",".filtered.vcf")
         filtered_query_vcf = query_vcf.replace(".vcf",".filtered.vcf")
     minos_binary = find_binary('minos')
-    command = ' '.join([minos_binary, 'check_recall', filtered_truth_vcf, truth_vcf_ref, filtered_query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches"])
+    command = ' '.join([minos_binary, 'check_recall', filtered_truth_vcf, truth_vcf_ref, filtered_query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--allow_flank_mismatches"])
     if mask:
         command += " --exclude_bed " + mask
+    if not exclude_ref_alleles:
+        command += " --include_ref_calls"
     syscall(command)
 
 def index_ref(ref):
@@ -99,7 +101,7 @@ def restrict_to_snps(in_vcf, max_length=1):
                 continue
         out_vcf.write_record(record)
 
-def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
+def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps, exclude_ref_alleles=False):
     '''Runs minos command to check each VCF with truth'''
     minos_binary = find_binary('minos')
     index_ref(truth)
@@ -108,9 +110,11 @@ def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
     if snps:
         restrict_to_snps(filtered_vcf)
         filtered_vcf = filtered_vcf.replace(".vcf",".filtered.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--max_soft_clipped", str(20)])
     if mask:
         command += " --exclude_bed " + mask
+    if not exclude_ref_alleles:
+        command += " --include_ref_calls"
     syscall(command)
 
 def minos_to_df(name):
@@ -167,6 +171,8 @@ parser.add_argument('--snps', action='store_true',
                     help='Only evaluates SNP VCF records for precision')
 parser.add_argument('--max_var_length', type=int, default=0,
                     help='Restricts to VCF alleles with length < max_var_length for recall')
+parser.add_argument('--exclude_ref_alleles', action='store_true',
+                    help='Restricts to VCF alleles with non-ref call')
 args = parser.parse_args()
 
 truth_vcf = args.truth_vcf
@@ -186,7 +192,7 @@ name = sample_vcf_ref[:-7]
 
 print(name)
 if len(glob.glob(name + ".csv")) == 0:
-    run_evaluate_recall(truth_vcf, truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.recall_flank, args.mask, args.max_var_length)
-    run_evaluate_precision(truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.precision_flank, args.mask, args.snps)
+    run_evaluate_recall(truth_vcf, truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.recall_flank, args.mask, args.max_var_length, args.exclude_ref_alleles)
+    run_evaluate_precision(truth_vcf_ref, sample_vcf, sample_vcf_ref, name, args.precision_flank, args.mask, args.snps, args.exclude_ref_alleles)
     df = minos_to_df(name)
 

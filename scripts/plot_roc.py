@@ -51,12 +51,18 @@ def plot_graphs(items, x_max, y_label):
                 print("add df", x['name'].values[0], "to graph")
                 if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall"):
                     col = colormap_pandora(0)
+                    if "ref" in x['name'].values[0]:
+                        col = colormap_pandora(50)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                 elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 0:
                     col = colormap_pandora(100)
+                    if "ref" in x['name'].values[0]:
+                        col = colormap_pandora(150)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                 elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 1:
                     col = colormap_pandora(200)
+                    if "ref" in x['name'].values[0]:
+                        col = colormap_pandora(250)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                 elif x['name'].values[0].startswith("snippy") and i > 2:
                     col = colormap_snippy(snippy_i*20)

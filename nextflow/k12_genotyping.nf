@@ -179,7 +179,11 @@ process simulate_new_ref {
     output:
     file("simulated_ref.fa") into reference_assemblies_snippy
     file("simulated_ref.fa") into reference_assemblies_nanopolish
+    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_full
+    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_30
+    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_illumina
     set file("simulated_vars.vcf"), file("truth.fa") into true_variants
+    set file("simulated_vars.vcf"), file("truth.fa") into true_variants2
 
     """
     seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa
@@ -192,6 +196,11 @@ process simulate_new_ref {
     bgzip simulated_vars.filtered.vcf
     tabix -p vcf simulated_vars.filtered.vcf.gz
     cat truth.fa | vcf-consensus simulated_vars.filtered.vcf.gz > simulated_ref.fa
+
+    python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf pandora.simulated_vars.vcf
+    bgzip pandora.simulated_vars.filtered.vcf
+    tabix -p vcf pandora.simulated_vars.filtered.vcf.gz
+    cat ${ref} | vcf-consensus pandora.simulated_vars.filtered.vcf.gz > pandora_simulated_ref.fa
     """
 }
 
@@ -221,6 +230,32 @@ process pandora_genotype_nanopore {
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
 }
+process pandora_genotype_nanopore_ref {
+    memory { 40.GB * task.attempt }
+    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    maxRetries 3
+    container {
+      'shub://rmcolq/pandora:pandora'
+    } 
+    
+    publishDir final_outdir, mode: 'copy', overwrite: true
+    
+    input:
+    file pangenome_prg
+    file nanopore_reads
+    file index from pandora_idx
+    file kmer_prgs from pandora_kmer_prgs
+    file ref from reference_assemblies_pandora_full
+    
+    output:
+    set(file("pandora_genotyped_full_ref.vcf"), file("pandora_genotyped_full_ref.ref.fa")) into pandora_full_vcf_ref
+    
+    """
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --min_diff_covg_gt 15 --vcf_ref ${ref}
+    cp ${ref} pandora_genotyped_full_ref.ref.fa
+    cp pandora/pandora_genotyped.vcf pandora_genotyped_full_ref.vcf
+    """
+}
 process pandora_genotype_nanopore_30 {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
@@ -246,6 +281,32 @@ process pandora_genotype_nanopore_30 {
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
 }
+process pandora_genotype_nanopore_30_ref {
+    memory { 40.GB * task.attempt }
+    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    maxRetries 3
+    container {
+      'shub://rmcolq/pandora:pandora'
+    } 
+    
+    publishDir final_outdir, mode: 'copy', overwrite: true
+    
+    input:
+    file pangenome_prg
+    file nanopore_reads
+    file index from pandora_idx
+    file kmer_prgs from pandora_kmer_prgs
+    file ref from reference_assemblies_pandora_30
+    
+    output:
+    set(file("pandora_genotyped_30X_ref.vcf"), file("pandora_genotyped_30X_ref.ref.fa")) into pandora_30X_vcf_ref
+    
+    """
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --min_diff_covg_gt 1 --vcf_ref ${ref}
+    cp ${ref} pandora_genotyped_30X_ref.ref.fa
+    cp pandora/pandora_genotyped.vcf pandora_genotyped_30X_ref.vcf 
+    """
+} 
 process nanopolish_index {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
@@ -260,21 +321,19 @@ process nanopolish_index {
     file albacore_summary
 
     output:
-    set file("${nanopore_reads}.*") into nanopolish_index
+    set file("reads.fq*") into nanopolish_index
 
     """
     v=${nanopore_reads}
     if [ \${v: -3} == ".gz" ]
     then
-    t=\${v::-3}
-    zcat \$v | head -n600000 > \$t
+    zcat \$v | head -n600000 > reads.fq
     else
     zcat \$v | head -n600000 > reads.tmp
-    mv reads.tmp \$v
-    t=\$v
+    mv reads.tmp reads.fq
     fi
 
-    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} \$t
+    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} reads.fq
     """
 }
 process nanopolish_genotype_nanopore {
@@ -291,7 +350,6 @@ process nanopolish_genotype_nanopore {
     publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
-    file nanopore_reads
     file reference_assembly from reference_assemblies_nanopolish
     file nanopolish_index
     file raw_fast5s
@@ -300,23 +358,15 @@ process nanopolish_genotype_nanopore {
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
 
     """
-    v=${nanopore_reads}
-    if [ \${v: -3} == ".gz" ]
-    then
-    t=\${v::-3}
-    else
-    t=\$v
-    fi
-
     bwa index ${reference_assembly}
-    bwa mem -x ont2d -t 8 ${reference_assembly} \$t | samtools sort -o reads.sorted.bam -T reads.tmp
+    bwa mem -x ont2d -t 8 ${reference_assembly} reads.fq | samtools sort -o reads.sorted.bam -T reads.tmp
     samtools index reads.sorted.bam
     mkdir -p nanopolish.results/vcf
     python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
     nanopolish variants \
       -t 8 \
       -w {1} \
-      --reads \$t \
+      --reads reads.fq \
       --bam reads.sorted.bam \
       --genome ${reference_assembly} \
       -o nanopolish.results/vcf/nanopolish.{1}.vcf \
@@ -417,7 +467,7 @@ else if (params.illumina_reads_1) {
 }
 if (params.illumina_reads_1) {
     process pandora_genotype_illumina {
-        memory { 55.GB * task.attempt }
+        memory { 65.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
         maxRetries 3
         container {
@@ -441,6 +491,33 @@ if (params.illumina_reads_1) {
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
     }
+
+    process pandora_genotype_illumina_ref {
+        memory { 55.GB * task.attempt }
+        errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+        maxRetries 3
+        container {
+          'shub://rmcolq/pandora:pandora'
+        }
+
+        publishDir final_outdir, mode: 'copy', overwrite: true
+
+        input:
+        file pangenome_prg
+        file illumina_reads
+        file index from pandora_idx
+        file kmer_prgs from pandora_kmer_prgs
+        file ref from reference_assemblies_pandora_illumina
+
+        output:
+        set(file("pandora_genotyped_illumina_ref.vcf"), file("pandora_genotyped_illumina_ref.ref.fa")) into pandora_illumina_vcf_ref
+
+        """
+        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --min_diff_covg_gt 60 --vcf_ref ${ref}
+        cp ${ref} pandora_genotyped_illumina_ref.ref.fa
+        cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina_ref.vcf
+        """
+    }
 }
 if (params.illumina_reads_1) {
     pandora_illumina_vcf.concat(snippy_vcf).set { illumina_channels }
@@ -453,6 +530,7 @@ if (params.nanopore_reads) {
     nanopore_channels = Channel.from()
 }
 nanopore_channels.concat(illumina_channels).set { all_vcfs }
+pandora_illumina_vcf_ref.concat(pandora_full_vcf_ref, pandora_30X_vcf_ref).set { pandora_vcf_ref_channels }
 
 process compare_vcfs {
         errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -476,6 +554,28 @@ process compare_vcfs {
         """
 }
 
+process compare_vcfs_ref {
+        errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+        maxRetries 2 
+        memory {1.4.GB * task.attempt}
+        container {
+              'shub://rmcolq/Singularity_recipes:minos'
+            }
+              
+        publishDir final_outdir, mode: 'copy', overwrite: true
+
+        input:
+        set(file(truth_vcf), file(truth_vcf_ref)) from true_variants2
+        set(file(vcf), file(vcf_ref)) from pandora_vcf_ref_channels
+        
+        output:
+        file('*.csv') into df_ref
+        
+        """
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --max_var_length 11 --exclude_ref_alleles
+        """
+}
+
 process make_graph {
     errorStrategy {task.attempt < 2 ? 'retry' : 'fail'}
     maxRetries 2
@@ -488,6 +588,7 @@ process make_graph {
 
     input:
     file '*.csv' from df.collect()
+    file '*.csv' from df_ref.collect()
 
     output:
     'roc*.png'
