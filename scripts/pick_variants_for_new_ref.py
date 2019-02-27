@@ -15,7 +15,6 @@ def rev_comp(s):
 def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_var_size, p, w):
     vcf_reader = vcf.Reader(open(vcf_file, 'r'))
     vcf_writer = vcf.Writer(open("tmp." + out_vcf, 'w'), vcf_reader)
-    vcf_writer_p = vcf.Writer(open("pandora." + out_vcf, 'w'), vcf_reader)
     record_dict = SeqIO.to_dict(SeqIO.parse(vcf_ref, "fasta"))
     truth_dict = SeqIO.to_dict(SeqIO.parse(truth, "fasta"))
     
@@ -64,7 +63,6 @@ def simulate_ref(vcf_file, vcf_ref, sam_file, truth, out_vcf, min_var_size, max_
                     check_seq = truth_seq[record.POS-1:record.POS+len(record.REF)-1]
                     if(truth_local_seq == ref_seq and check_seq == record.REF and min_var_size <= len(record.ALT[0]) <= max_var_size):
                         vcf_writer.write_record(record)
-                        vcf_writer_p.write_record(record_copy)
                         last_record = record_copy
                         break
 

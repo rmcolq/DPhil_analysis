@@ -21,7 +21,7 @@ def get_nums_from_cigar(cigar):
             start = end+1
     return numbers, letters
 
-def plot_sam_dist(sam_file, out_prefix):
+def plot_sam_dist(sam_file, out_prefix, unique=False):
     total_gene_bases = 0
     total_mismatch_bases = 0
     num_false_positives = 0
@@ -36,12 +36,15 @@ def plot_sam_dist(sam_file, out_prefix):
     all_names = []
     non_unique_names = []
     for line in f:
-        if line != "" and line[0].isalpha():
+        if line != "" and line[0]!="@":#line[0].isalpha():
             name = line.split('\t')[0]
-            if name in all_names:
+            if unique and name in all_names:
                 non_unique_names.append(name)
+                print(name, [i for i in all_names if i==name])
             else:
                 all_names.append(name)
+    print("all names", len(all_names))
+    print("non unique names", len(non_unique_names))
     f.close()
 
     f = open(sam_file, 'r')
@@ -135,7 +138,9 @@ parser.add_argument('--sam', type=str,
                     help='Input SAM')
 parser.add_argument('--prefix', type=str,
                     help='Output prefix')
+parser.add_argument('--unique', action='store_true',
+                    help='If used, filters only unique sam matches')
 args = parser.parse_args()
 
-plot_sam_dist(args.sam, args.prefix)
+plot_sam_dist(args.sam, args.prefix, args.unique)
 

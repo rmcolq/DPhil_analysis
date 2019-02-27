@@ -47,7 +47,7 @@ process pandora_index {
     container {
       'shub://rmcolq/pandora:pandora'
     }
-    time '3h'
+    maxForks params.max_forks
 
     input:
     file pangenome_prg
@@ -62,7 +62,7 @@ process pandora_index {
     a=\$(( 2 * ${offset} + 1 ))
     b=\$(( 2 * ${num_prg} ))
     tail -n+\$a ${pangenome_prg} | head -n \$b > prg.fa
-    pandora index -w 1 -k 3 prg.fa --offset ${offset}
+    pandora index prg.fa --offset ${offset}
     """
 }
 
@@ -73,13 +73,15 @@ process combine {
     container {
       'shub://rmcolq/pandora:pandora'
     }
-    time '3h'
 
-    publishDir pangenome_prg.parent, mode: 'copy', overwrite: false
+    publishDir pangenome_prg.parent, mode: 'copy', overwrite: true
 
     input:
     file pangenome_prg
     file("prg.fa.*.idx") from indexes.collect()
+
+    output:
+    file("${pangenome_prg}.w14.k15.idx")
 
     """
     pandora merge_index --outfile ${pangenome_prg}.w14.k15.idx \$(ls *.idx)
@@ -93,7 +95,7 @@ process publish_kgs {
     container {
       'shub://rmcolq/pandora:pandora'
     } 
-    time '30m'
+    maxForks params.max_forks
     
     publishDir pangenome_prg.parent+"/kmer_prgs", mode: 'copy', overwrite: true
     

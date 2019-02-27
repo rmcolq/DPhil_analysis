@@ -1,0 +1,3 @@
+#mkdir /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/finding_genes_covg
+cd /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/finding_genes_covg
+bsub.py 1.0 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/logs/finding_genes_covg nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/finding_genes_covg.nf  --pangenome_prg /nfs/leia/research/iqbal/rmcolq/projects/pangenome_prg/ecoli/290818_all/ecoli_pangenome_PRG_290818.fa -w /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/finding_genes_covg/work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume

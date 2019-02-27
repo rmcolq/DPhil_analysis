@@ -212,7 +212,7 @@ process make_plot {
   file ("${wflanks}_${type}_list.txt") into count_list
 
   """
-  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "${wflanks}_${type}"
+  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "${wflanks}_${type}" --unique
   """
 }
 

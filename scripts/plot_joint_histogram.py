@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import argparse
 
-def plot_count_hist(file1, file2, prefix):
+def plot_count_hist(file1, file2, prefix=""):
     print("parameters")
     print(file1, file2, prefix)
     count_dict = {}

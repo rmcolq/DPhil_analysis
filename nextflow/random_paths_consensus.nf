@@ -1,9 +1,10 @@
 params.pangenome_prg = ""
-params.number_paths = 5
+params.number_paths = 2
 
 params.help = false
 params.final_outdir = "."
 params.max_forks = 100
+params.pipeline_root = "/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis"
 
 if (params.help){
     log.info"""
@@ -56,7 +57,9 @@ process pandora_random_paths {
   """
   pandora random_path ${prg} ${num_paths}
   gunzip random_paths.fa.gz
-  awk '!/^>/ { next } { getline seq } length(seq) >= 200 { print \$0 "\\n" seq }' random_paths.fa > random_paths_filtered.fa
+  awk '!/^>/ { next } { getline seq } length(seq) >= 200 { print \$0 "\\n" seq }' random_paths.fa > tmp.random_paths_filtered.fa
+  head -n40000 tmp.random_paths_filtered.fa > random_paths_filtered.fa
+  
   """
 }
  
@@ -91,7 +94,7 @@ process simulate_nanopore_reads {
   do
   echo "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" >> random_path.fa
   done
-  nanosim-h -p ecoli_R9_2D -n 500 random_path.fa --unalign-rate 0 --max-len 10000
+  nanosim-h -p ecoli_R9_2D -n 250 random_path.fa --unalign-rate 0 --max-len 10000
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
@@ -179,7 +182,7 @@ process pandora_map_path_nano {
   set file("pandora_result.fq"), file("${path}") into pandora_output_path_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --genome_size 1000 --max_covg 25000
+  pandora map -p ${prg} -r ${reads} --genome_size 25000 --max_covg 100
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else

@@ -141,6 +141,32 @@ if (!pandora_idx.exists()) {
     }
 }
 
+pandora_vcfref = file(pangenome_prg + '.vcfref.fa')
+if (!pandora_vcfref.exists()) {
+    process pandora_vcfref {
+        memory { 20.GB * task.attempt }
+        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
+        maxRetries 3
+        container {
+          'shub://rmcolq/pandora:pandora'
+        }
+
+        publishDir pangenome_prg.parent, mode: 'copy', overwrite: true
+
+        input:
+        file pangenome_prg
+
+        output:
+        file "prg.fa.vcf_ref.fa" into pandora_vcfref
+
+        """
+        cp ${pangenome_prg} prg.fa
+        pandora get_vcf_ref prg.fa
+        gunzip prg.fa.vcf_ref.fa.gz
+        """
+    }
+}
+
 process pandora_get_ref_vcf {
     memory { 5.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
@@ -175,13 +201,14 @@ process simulate_new_ref {
     input:
     file truth_assembly
     set(file(vcf), file(ref)) from ref_vcf
+    file pandora_vcfref
 
     output:
     file("simulated_ref.fa") into reference_assemblies_snippy
     file("simulated_ref.fa") into reference_assemblies_nanopolish
-    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_full
-    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_30
-    file("pandora_simulated_ref.fa") into reference_assemblies_pandora_illumina
+    file("pandora_vcfref.fa") into reference_assemblies_pandora_full
+    file("pandora_vcfref.fa") into reference_assemblies_pandora_30
+    file("pandora_vcfref.fa") into reference_assemblies_pandora_illumina
     set file("simulated_vars.vcf"), file("truth.fa") into true_variants
     set file("simulated_vars.vcf"), file("truth.fa") into true_variants2
 
@@ -197,10 +224,10 @@ process simulate_new_ref {
     tabix -p vcf simulated_vars.filtered.vcf.gz
     cat truth.fa | vcf-consensus simulated_vars.filtered.vcf.gz > simulated_ref.fa
 
-    python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf pandora.simulated_vars.vcf
-    bgzip pandora.simulated_vars.filtered.vcf
-    tabix -p vcf pandora.simulated_vars.filtered.vcf.gz
-    cat ${ref} | vcf-consensus pandora.simulated_vars.filtered.vcf.gz > pandora_simulated_ref.fa
+    bwa index simulated_ref.fa
+    bwa mem simulated_ref.fa ${ref} > pandora_ref.sam
+    python3 ${params.pipeline_root}/scripts/ref_from_sam.py --sam pandora_ref.sam > simref_pandora.fa
+    python3 ${params.pipeline_root}/scripts/combine_vcfref_fa.py --full_fa ${pandora_vcfref} --subset_fa simref_pandora.fa --out_fa pandora_vcfref.fa
     """
 }
 
