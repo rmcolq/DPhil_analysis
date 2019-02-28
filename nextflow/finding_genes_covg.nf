@@ -166,7 +166,7 @@ if (!pandora_idx.exists()) {
 
 max_covg_nano = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
 process pandora_map_path_nano {
-  memory { 4.GB * task.attempt }
+  memory { 30.GB * task.attempt }
   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
   maxRetries 2
   maxForks params.max_forks
@@ -185,7 +185,7 @@ process pandora_map_path_nano {
   set file("pandora_result.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --max_covg ${max_covg_nano}
+  pandora map -p ${prg} -r ${reads} --max_covg ${max_covg}
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
@@ -196,7 +196,7 @@ process pandora_map_path_nano {
 
 max_covg_ill = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
 process pandora_map_path_illumina {
-  memory { 4.GB * task.attempt }
+  memory { 30.GB * task.attempt }
   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
   maxRetries 2
   maxForks params.max_forks
@@ -215,7 +215,7 @@ process pandora_map_path_illumina {
   set file("pandora_result.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_illumina
   
   """
-  pandora map -p ${prg} -r ${reads} --illumina 
+  pandora map -p ${prg} -r ${reads} --illumina --max_covg ${max_covg}
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else

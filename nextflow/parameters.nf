@@ -38,12 +38,17 @@ final_outdir = file(params.final_outdir).toAbsolutePath()
 if (!final_outdir.exists()) {
     exit 1, "Final out directory not found: ${params.final_outdir} -- aborting"
 }
-ks = Channel.from(7,9,11,13,15,17,19,21,23,25,27,29,31,33,35,37,39,41,43,45)
+
+
+ks = Channel.from(7,9,11,13,15,17,19,21,23,25,27,29,31)
+ws = Channel.from(1..31)
+ks.combine(ws).filter { it[1] % 2 == 1 }.filter { it[1] < it[0] }.set { kws }
+
 
 process index_prg {
     memory { 20.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-    maxRetries 3
+    errorStrategy {task.attempt < 5 ? 'retry' : 'ignore'}
+    maxRetries 5
     container {
       'shub://rmcolq/pandora:pandora'
     }
@@ -52,17 +57,18 @@ process index_prg {
 
     input:
     file pangenome_prg
-    val w from ws
-    val k from ks
+    set val(k), val(w) from kws
 
     output:
-    set file("prg.fa"), file("prg.*.idx"), file("kmer_prgs"), file("timeinfo.txt") into indexes
+    set file("prg.fa"), file("prg.*.idx"), file("kmer_prgs"), val("${w}"), val("${k}") into indexes_nano
+    set file("prg.fa"), file("prg.*.idx"), file("kmer_prgs"),val("${w}"), val("${k}") into indexes_ill
+    set val("${w}"), val("${k}"), file("indextimeinfo.txt") into indexes_times
 
     """
     head -n10000 ${pangenome_prg} > prg.fa
     tail -n10000 ${pangenome_prg} >> prg.fa
     echo "pandora index -w ${w} -k ${k} prg.fa &> pandora.log" > command.sh
-    /usr/bin/time -v bash command.sh &> timeinfo.txt
+    /usr/bin/time -v bash command.sh &> indextimeinfo.txt
     """
 }
 
@@ -109,7 +115,6 @@ process simulate_genome {
   """
 }
  
-nano_lens = Channel.from(10000,20000,30000,40000,50000)
 process simulate_nanopore_reads {
   memory { 10.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -121,24 +126,22 @@ process simulate_nanopore_reads {
 
   input:
   file ref_fasta from nano_genome
-  val max_len from nano_lens
 
   output:
   file("simulated*.fa") into sim_reads_nano
 
   """
-  nanosim-h -p ecoli_R9_2D -n 150000 ${ref_fasta} --unalign-rate 0 --max-len ${max_len}
+  nanosim-h -p ecoli_R9_2D -n 50000 ${ref_fasta} --unalign-rate 0 --max-len 10000
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
   rm simulated.fa
   exit 1
   fi 
-  mv simulated.fa simulated_nanopore_${max_len}.fa
+  mv simulated.fa simulated_nanopore.fa
   """
 }
 
-ill_types = Channel.from("HS10", "HS20", "HS25", "MS")
 process simulate_illumina_reads {
   memory { 20.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -150,13 +153,12 @@ process simulate_illumina_reads {
 
   input:
   file(ref_fasta) from ill_genome
-  val(type) from ill_types
 
   output:
   file("simulated*.fq") into sim_reads_illumina
 
   """
-  art_illumina -ss ${type} -i ${ref_fasta} -f 300 -o simulated_illumina_${type}
+  art_illumina -ss HS25 -i ${ref_fasta} -l 150 -f 100 -o simulated_illumina
   if [[ -s simulated*.fq ]] ; then
   echo "simulated.fq has data."
   else
@@ -166,54 +168,27 @@ process simulate_illumina_reads {
   """
 }
 
-pandora_idx = file(pangenome_prg + '.k15.w14.idx')
-pandora_kmer_prgs = file(pangenome_prg.parent / 'kmer_prgs')
-if (!pandora_idx.exists()) {
-    process pandora_index {
-        memory { 20.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        maxRetries 3
-        container {
-          'shub://rmcolq/pandora:pandora'
-        }
-
-        publishDir pangenome_prg.parent, mode: 'copy', overwrite: false
-
-        input:
-        file pangenome_prg
-
-        output:
-        file "${pangenome_prg}.k15.w14.idx" into pandora_idx
-        file "kmer_prgs" into pandora_kmer_prgs
-
-        """
-        pandora index -w 14 -k 15 ${pangenome_prg}
-        """
-    }
-}
-
-max_covg_nano = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
 process pandora_map_path_nano {
-  memory { 4.GB * task.attempt }
-  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-  maxRetries 2
+  memory { 24.GB * task.attempt }
+  errorStrategy {task.attempt < 4 ? 'retry' : 'ignore'}
+  maxRetries 4
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
   }
   
   input:
-  file prg from pangenome_prg
   file(reads) from sim_reads_nano
-  file index from pandora_idx
-  file kmer_prgs from pandora_kmer_prgs
-  val(max_covg) from max_covg_nano
+  set file(prg), file(index), file(kmer_prgs), val(w), val(k) from indexes_nano
   
   output:
-  set file("pandora_result.fq"), file("${path}"), val("${max_covg}") into pandora_output_path_nano
+  set val("Nanopore"), file("pandora_result.fq"), val("${w}"), val("${k}") into pandora_output_path_nano
+  set val("Nanopore"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --max_covg ${max_covg_nano}
+  echo "pandora map -p ${prg} -r ${reads} --max_covg 100 &> pandora.log" > command.sh
+  /usr/bin/time -v bash command.sh &> maptimeinfo.txt
+
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
@@ -231,28 +206,27 @@ process pandora_map_path_nano {
   """
 } 
 
-max_covg_ill = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
 process pandora_map_path_illumina {
-  memory { 4.GB * task.attempt }
-  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-  maxRetries 2
+  memory { 24.GB * task.attempt }
+  errorStrategy {task.attempt < 4 ? 'retry' : 'ignore'}
+  maxRetries 4
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
   }   
   
   input:
-  file prg from pangenome_prg
   file(reads) from sim_reads_illumina
-  file index from pandora_idx
-  file kmer_prgs from pandora_kmer_prgs
-  val(max_covg) from max_covg_ill
+  set file(prg), file(index), file(kmer_prgs), val(k), val(k) from indexes_ill
   
   output:
-  set file("pandora_result.fq"), file("${path}"), val("${max_covg}") into pandora_output_path_illumina
+  set val("Illumina"), file("pandora_result.fq"), val("${w}"), val("${k}") into pandora_output_path_illumina
+  set val("Illumina"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_illumina
   
   """
-  pandora map -p ${prg} -r ${reads} --illumina 
+  echo "pandora map -p ${prg} -r ${reads} --illumina --max_covg 100 &> pandora.log" > command.sh
+  /usr/bin/time -v bash command.sh &> maptimeinfo.txt
+
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
@@ -270,6 +244,7 @@ process pandora_map_path_illumina {
 } 
 
 pandora_output_path_illumina.concat(pandora_output_path_nano).set { consensus }
+pandora_output_time_illumina.concat(pandora_output_time_nano).set { map_times }
 
 process evaluate_genes_found {
   memory { 0.01.GB * task.attempt }
@@ -281,16 +256,83 @@ process evaluate_genes_found {
   }
 
   input:
-  set file(pandora_run), file(sim_reads), val(covg) from consensus
+  set val(type), file(pandora_run), val(w), val(k) from consensus
   file(truth_list) from truth
 
   output:
   file("results.tsv") into output_tsv
 
   """
-  python3 ${params.pipeline_root}/scripts/finding_genes_eval.py --fastq ${pandora_run} --truth ${truth_list} --prefix ${sim_reads} --covg ${covg}
+  python3 ${params.pipeline_root}/scripts/finding_genes_eval.py --fastq ${pandora_run} --truth ${truth_list} --prefix "${type}\t${w}\t${k}" --covg 100
   """
 }
 
 output_tsv.collectFile(name: 'gene_finding_by_covg.tsv')
 
+process make_df_index_times {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+
+  input:
+  set val(w), val(k), file(timeinfo) from indexes_times
+
+  output:
+  file("out.tsv") into df_line_indexes
+
+  """
+  #!/usr/bin/env bash
+  sentence=\$(grep "System time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  systime=\${stringarray[3]}
+  echo \$systime
+
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  usertime=\${stringarray[3]}
+  echo \$usertime
+
+  sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
+  stringarray=(\$sentence)
+  maxmem=\${stringarray[5]}
+  echo \$maxmem
+
+  echo -e "${w}\t${k}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
+  """
+}
+
+df_line_indexes.collectFile(name: final_outdir/'index_parameters.tsv')
+
+process make_df_map_times {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+
+  input: 
+  set val(type), val(w), val(k), file(timeinfo) from map_times
+  
+  output:
+  file("out.tsv") into df_line_map
+  
+  """
+  #!/usr/bin/env bash
+  sentence=\$(grep "System time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  systime=\${stringarray[3]}
+  echo \$systime 
+  
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  usertime=\${stringarray[3]}
+  echo \$usertime
+  
+  sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
+  stringarray=(\$sentence)
+  maxmem=\${stringarray[5]}
+  echo \$maxmem
+  
+  echo -e "${type}\t${w}\t${k}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
+  """
+} 
+
+df_line_map.collectFile(name: final_outdir/'map_parameters.tsv')
