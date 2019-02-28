@@ -1,0 +1,53 @@
+## From outbryk, method for going from VCF to FastTree
+3. Vcf to multifasta
+bash-4.1$ perl
+/Net/cycloid/data2/users/rachel/projects/outbryk/scripts/filter_cortex_vcf.pl
+/Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf # this filters for PASS SNPs occuring in at least 95%, and with at least 1 confident het call
+bash-4.1$ perl
+/Net/cycloid/data2/users/rachel/projects/outbryk/scripts/cortex_vcf_to_tab.pl
+--vcf
+/Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05
+> /Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05.tab # producs table of site and lists for each sample the allele called (AGCT)
+bash-4.1$ perl
+/Net/cycloid/data2/users/rachel/projects/outbryk/scripts/vcf_tab_to_fasta_alignment.pl
+-i
+/Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05.tab
+> /Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05.fasta
+
+4. Make FastTree
+bash-4.1$ /apps/well/fasttree/20150325/FastTree -nt
+/Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05.fasta
+> /Net/cycloid/data2/users/rachel/outbreak_challenge/salmonella/results/SALMONELLA_ASM.combined.vcf.filtered_missing.conf_thresh5.missingness_thresh0.05.tree
+
+### Dendograms in R
+http://uc-r.github.io/hc_clustering
+
+library(tidyverse)  # data manipulation
+library(cluster)    # clustering algorithms
+library(factoextra) # clustering visualization
+library(dendextend) # for comparing two dendrograms
+
+# Compute distance matrix
+res.dist <- dist(df, method = "euclidean")
+
+# Compute 2 hierarchical clusterings
+hc1 <- hclust(res.dist, method = "complete")
+hc2 <- hclust(res.dist, method = "ward.D2")
+
+# Create two dendrograms
+dend1 <- as.dendrogram (hc1)
+dend2 <- as.dendrogram (hc2)
+
+tanglegram(dend1, dend2)
+
+
+### Converting trees to dendograms:
+https://stackoverflow.com/questions/7445684/how-to-convert-a-tree-to-a-dendrogram-in-r
+dend <- ReadDendrogram(path_to_newick_file)
+
+library('ape')
+tree <- read.tree(text='(((A:4.2,B:4.2):3.1,C:7.3):6.3,D:13.6);')
+is.ultrametric(tree)
+is.binary.tree(tree)
+is.rooted(tree)
+hc <- as.hclust.phylo(tree)

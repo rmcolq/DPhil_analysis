@@ -216,7 +216,7 @@ process simulate_new_ref {
     seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa
     bwa index truth.fa
     bwa mem truth.fa ${ref} > out.sam
-    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf --prob .1
+    python3 ${params.pipeline_root}/scripts/pick_variants_for_new_ref.py  --in_vcf ${vcf} --vcf_ref ${ref} --ref truth.fa --sam out.sam --out_vcf simulated_vars.vcf --prob .05
     cat tmp.simulated_vars.vcf | grep "#" > simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep -v "#" | sort -k2 -n >> simulated_vars.vcf
     python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf simulated_vars.vcf
@@ -252,7 +252,7 @@ process pandora_genotype_nanopore {
     set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
 
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --min_diff_covg_gt 15 
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype 
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
@@ -264,6 +264,7 @@ process pandora_genotype_nanopore_ref {
     container {
       'shub://rmcolq/pandora:pandora'
     } 
+    time '2s'
     
     publishDir final_outdir, mode: 'copy', overwrite: true
     
@@ -278,7 +279,7 @@ process pandora_genotype_nanopore_ref {
     set(file("pandora_genotyped_full_ref.vcf"), file("pandora_genotyped_full_ref.ref.fa")) into pandora_full_vcf_ref
     
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --min_diff_covg_gt 15 --vcf_ref ${ref}
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --vcf_refs ${ref}
     cp ${ref} pandora_genotyped_full_ref.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full_ref.vcf
     """
@@ -303,7 +304,7 @@ process pandora_genotype_nanopore_30 {
     set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
 
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --min_diff_covg_gt 1
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_30X.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
@@ -315,6 +316,7 @@ process pandora_genotype_nanopore_30_ref {
     container {
       'shub://rmcolq/pandora:pandora'
     } 
+    time '2s'
     
     publishDir final_outdir, mode: 'copy', overwrite: true
     
@@ -329,7 +331,7 @@ process pandora_genotype_nanopore_30_ref {
     set(file("pandora_genotyped_30X_ref.vcf"), file("pandora_genotyped_30X_ref.ref.fa")) into pandora_30X_vcf_ref
     
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --min_diff_covg_gt 1 --vcf_ref ${ref}
+    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --vcf_refs ${ref}
     cp ${ref} pandora_genotyped_30X_ref.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X_ref.vcf 
     """
@@ -513,7 +515,7 @@ if (params.illumina_reads_1) {
         set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
 
         """
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --min_diff_covg_gt 60
+        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina
         seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
@@ -526,6 +528,7 @@ if (params.illumina_reads_1) {
         container {
           'shub://rmcolq/pandora:pandora'
         }
+        time '2s'
 
         publishDir final_outdir, mode: 'copy', overwrite: true
 
@@ -540,7 +543,7 @@ if (params.illumina_reads_1) {
         set(file("pandora_genotyped_illumina_ref.vcf"), file("pandora_genotyped_illumina_ref.ref.fa")) into pandora_illumina_vcf_ref
 
         """
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --min_diff_covg_gt 60 --vcf_ref ${ref}
+        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --vcf_refs ${ref}
         cp ${ref} pandora_genotyped_illumina_ref.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina_ref.vcf
         """
@@ -603,6 +606,8 @@ process compare_vcfs_ref {
         """
 }
 
+df.concat( df_ref ).set { dfs }
+
 process make_graph {
     errorStrategy {task.attempt < 2 ? 'retry' : 'fail'}
     maxRetries 2
@@ -614,8 +619,7 @@ process make_graph {
     publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
-    file '*.csv' from df.collect()
-    file '*.csv' from df_ref.collect()
+    file '*.csv' from dfs.collect()
 
     output:
     'roc*.png'
