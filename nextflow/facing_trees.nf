@@ -1,6 +1,7 @@
 params.tsv_in = ""
 params.pangenome_prg = ""
 params.chunk_size = 750
+params.num_samples = 15
 
 
 params.help = false

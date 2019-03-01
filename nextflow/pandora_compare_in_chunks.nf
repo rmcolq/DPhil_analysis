@@ -1,7 +1,7 @@
 params.tsv_in = ""
 params.pangenome_prg = ""
 params.chunk_size = 750
-
+params.num_prg = 15
 
 params.help = false
 params.testing = false
@@ -80,7 +80,7 @@ process pandora_index {
 } 
 
 process pandora_compare_illumina {
-  memory { 0.8.GB * task.attempt }
+  memory { 0.1.GB * params.num_samples * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -108,7 +108,7 @@ process pandora_compare_illumina {
 } 
 
 /*process pandora_compare_nanopore {
-  memory { 8.GB * task.attempt }
+  memory { 0.1.GB * params.num_samples * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {

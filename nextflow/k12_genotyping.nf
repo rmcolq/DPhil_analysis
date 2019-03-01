@@ -169,7 +169,7 @@ if (!pandora_vcfref.exists()) {
 
 process pandora_get_ref_vcf {
     memory { 5.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
@@ -192,7 +192,7 @@ process pandora_get_ref_vcf {
 
 process simulate_new_ref {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/Singularity_recipes:minos'
@@ -234,7 +234,7 @@ process simulate_new_ref {
 if (params.nanopore_reads) {
 process pandora_genotype_nanopore {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
@@ -259,7 +259,7 @@ process pandora_genotype_nanopore {
 }
 process pandora_genotype_nanopore_ref {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
@@ -286,7 +286,7 @@ process pandora_genotype_nanopore_ref {
 }
 process pandora_genotype_nanopore_30 {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
@@ -311,7 +311,7 @@ process pandora_genotype_nanopore_30 {
 }
 process pandora_genotype_nanopore_30_ref {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
@@ -338,7 +338,7 @@ process pandora_genotype_nanopore_30_ref {
 } 
 process nanopolish_index {
     memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/Singularity_recipes:nanopolish'
@@ -497,7 +497,7 @@ else if (params.illumina_reads_1) {
 if (params.illumina_reads_1) {
     process pandora_genotype_illumina {
         memory { 65.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
         maxRetries 3
         container {
           'shub://rmcolq/pandora:pandora'
@@ -523,7 +523,7 @@ if (params.illumina_reads_1) {
 
     process pandora_genotype_illumina_ref {
         memory { 55.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
         maxRetries 3
         container {
           'shub://rmcolq/pandora:pandora'
