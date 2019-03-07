@@ -1,6 +1,6 @@
 params.pangenome_prg = ""
 params.number_paths = 5
-params.number_genes = 1000 
+params.number_genes = 1000
 
 params.help = false
 params.final_outdir = "."

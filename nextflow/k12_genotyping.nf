@@ -250,9 +250,12 @@ process pandora_genotype_nanopore {
 
     output:
     set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
+    set val("Pandora\tNanopore\t100"), file(timeinfo.txt) into pandora_full_time
 
     """
     pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype 
+    echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype &> pandora.log" > command.sh
+    /usr/bin/time -v bash command.sh &> timeinfo.txt
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
@@ -303,9 +306,11 @@ process pandora_genotype_nanopore_30 {
 
     output:
     set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
+    set val("Pandora\tNanopore\t30"), file(timeinfo.txt) into pandora_30X_time
 
     """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30
+    echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 &> pandora.log" > command.sh
+    /usr/bin/time -v bash command.sh &> timeinfo.txt
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_30X.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
@@ -387,13 +392,14 @@ process nanopolish_genotype_nanopore {
 
     output:
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
+    set val("Nanopolish\tNanopore\t100"), file(timeinfo.txt) into nanopolish_time
 
     """
     bwa index ${reference_assembly}
     bwa mem -x ont2d -t 8 ${reference_assembly} reads.fq | samtools sort -o reads.sorted.bam -T reads.tmp
     samtools index reads.sorted.bam
     mkdir -p nanopolish.results/vcf
-    python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
+    echo "python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
     nanopolish variants \
       -t 8 \
       -w {1} \
@@ -403,7 +409,9 @@ process nanopolish_genotype_nanopore {
       -o nanopolish.results/vcf/nanopolish.{1}.vcf \
       -q dam,dcm \
       --ploidy 1
+    &> nanopolish.log" > command.sh
         
+    /usr/bin/time -v bash command.sh &> timeinfo.txt
     cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_full.vcf
     for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
     do
@@ -446,9 +454,12 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
+        set val("Snippy\tIllumina\t100"), file(timeinfo.txt) into snippy_time
 
         """
-        snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2}
+        echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2} &> snippy.log" > command.sh
+        
+        /usr/bin/time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -465,7 +476,7 @@ else if (params.illumina_reads_1) {
         container {
           'shub://rmcolq/Singularity_recipes:snippy'
         }
-        cpus 8
+        cpus 1
 
         publishDir final_outdir, mode: 'copy', overwrite: true
 
@@ -475,6 +486,7 @@ else if (params.illumina_reads_1) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
+        set val("Snippy\tIllumina\t100"), file(timeinfo.txt) into snippy_time
 
         """
         v=${illumina_reads_1}
@@ -489,7 +501,9 @@ else if (params.illumina_reads_1) {
         fi
 
         mkdir snippy_tmp
-        snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp
+        echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp &> snippy.log" > command.sh
+        
+        /usr/bin/time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -515,9 +529,11 @@ if (params.illumina_reads_1) {
 
         output:
         set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
+        set val("Pandora\tIllumina\t100"), file(timeinfo.txt) into pandora_illumina_time
 
         """
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina
+        echo "pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina &> pandora.log" > command.sh
+        /usr/bin/time -v bash command.sh &> timeinfo.txt
         seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
@@ -553,15 +569,20 @@ if (params.illumina_reads_1) {
 }
 if (params.illumina_reads_1) {
     pandora_illumina_vcf.concat(snippy_vcf).set { illumina_channels }
+    pandora_illumina_time.concat(snippy_time).set { illumina_times }
 } else {
     illumina_channels = Channel.from()
+    illumina_times = Channel.from()
 }
 if (params.nanopore_reads) {
     pandora_full_vcf.concat(pandora_30X_vcf, nanopolish_vcf).set { nanopore_channels }
+    pandora_full_time.concat(pandora_30X_time, nanopolish_time).set { nanopore_times }
 } else {
     nanopore_channels = Channel.from()
+    nanopore_times = Channel.from()
 }
 nanopore_channels.concat(illumina_channels).set { all_vcfs }
+nanopore_times.concat(illumina_times).set { all_times }
 /*pandora_illumina_vcf_ref.concat(pandora_full_vcf_ref, pandora_30X_vcf_ref).set { pandora_vcf_ref_channels }*/
 
 process compare_vcfs {
@@ -630,3 +651,37 @@ process make_graph {
     python3 ${params.pipeline_root}/scripts/plot_roc.py --x_max 0.008 --y_label "Recall"
     """
 }
+
+process timeinfo_df {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
+
+  input:
+  set val(type), file(timeinfo) from all_times
+
+  output:
+  file("out.tsv") into df_line
+
+  """
+  #!/usr/bin/env bash
+  sentence=\$(grep "System time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  systime=\${stringarray[3]}
+  echo \$systime
+
+  sentence=\$(grep "User time (seconds):" ${timeinfo})
+  stringarray=(\$sentence)
+  usertime=\${stringarray[3]}
+  echo \$usertime
+
+  sentence=\$(grep "Maximum resident set size (kbytes)" ${timeinfo})
+  stringarray=(\$sentence)
+  maxmem=\${stringarray[5]}
+  echo \$maxmem
+
+  echo -e "${type}\t\$systime\t\$usertime\t\$maxmem" > out.tsv
+  """
+}
+
+df_line.collectFile(name: final_outdir/'runinfo.tsv')
