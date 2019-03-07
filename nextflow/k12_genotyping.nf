@@ -257,6 +257,7 @@ process pandora_genotype_nanopore {
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
 }
+/*
 process pandora_genotype_nanopore_ref {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -283,7 +284,7 @@ process pandora_genotype_nanopore_ref {
     cp ${ref} pandora_genotyped_full_ref.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full_ref.vcf
     """
-}
+}*/
 process pandora_genotype_nanopore_30 {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -309,6 +310,7 @@ process pandora_genotype_nanopore_30 {
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
 }
+/*
 process pandora_genotype_nanopore_30_ref {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -335,7 +337,7 @@ process pandora_genotype_nanopore_30_ref {
     cp ${ref} pandora_genotyped_30X_ref.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X_ref.vcf 
     """
-} 
+} */
 process nanopolish_index {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -520,7 +522,7 @@ if (params.illumina_reads_1) {
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
     }
-
+/*
     process pandora_genotype_illumina_ref {
         memory { 55.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -547,7 +549,7 @@ if (params.illumina_reads_1) {
         cp ${ref} pandora_genotyped_illumina_ref.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina_ref.vcf
         """
-    }
+    }*/
 }
 if (params.illumina_reads_1) {
     pandora_illumina_vcf.concat(snippy_vcf).set { illumina_channels }
@@ -560,7 +562,7 @@ if (params.nanopore_reads) {
     nanopore_channels = Channel.from()
 }
 nanopore_channels.concat(illumina_channels).set { all_vcfs }
-pandora_illumina_vcf_ref.concat(pandora_full_vcf_ref, pandora_30X_vcf_ref).set { pandora_vcf_ref_channels }
+/*pandora_illumina_vcf_ref.concat(pandora_full_vcf_ref, pandora_30X_vcf_ref).set { pandora_vcf_ref_channels }*/
 
 process compare_vcfs {
         errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -580,10 +582,10 @@ process compare_vcfs {
         file('*.csv') into df
 
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --max_var_length 11
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9
         """
 }
-
+/*
 process compare_vcfs_ref {
         errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
         maxRetries 2 
@@ -602,11 +604,11 @@ process compare_vcfs_ref {
         file('*.csv') into df_ref
         
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --max_var_length 11 --exclude_ref_alleles
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --exclude_ref_alleles
         """
 }
 
-df.concat( df_ref ).set { dfs }
+df.concat( df_ref ).set { dfs }*/
 
 process make_graph {
     errorStrategy {task.attempt < 2 ? 'retry' : 'fail'}
@@ -619,7 +621,7 @@ process make_graph {
     publishDir final_outdir, mode: 'copy', overwrite: true
 
     input:
-    file '*.csv' from dfs.collect()
+    file '*.csv' from df.collect()
 
     output:
     'roc*.png'

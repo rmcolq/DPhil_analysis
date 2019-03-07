@@ -182,7 +182,7 @@ process pandora_map_path_nano {
   set file(prg), file(index), file(kmer_prgs), val(w), val(k) from indexes_nano
   
   output:
-  set val("Nanopore"), file("pandora_result.fq"), val("${w}"), val("${k}") into pandora_output_path_nano
+  set val("Nanopore"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_nano
   set val("Nanopore"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_nano
   
   """
@@ -195,14 +195,7 @@ process pandora_map_path_nano {
   exit 1
   fi
 
-  v=\$(head -n1 ${path})
-  zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
-  if [[ -s pandora_result.fq ]] ; then
-  echo "pandora/pandora.consensus.fq.gz has results."
-  else
-  exit 1
-  fi
-  
+  gunzip pandora/pandora.consensus.fq.gz 
   """
 } 
 
@@ -220,7 +213,7 @@ process pandora_map_path_illumina {
   set file(prg), file(index), file(kmer_prgs), val(k), val(k) from indexes_ill
   
   output:
-  set val("Illumina"), file("pandora_result.fq"), val("${w}"), val("${k}") into pandora_output_path_illumina
+  set val("Illumina"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_illumina
   set val("Illumina"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_illumina
   
   """
@@ -233,13 +226,7 @@ process pandora_map_path_illumina {
   exit 1
   fi
 
-  v=\$(head -n1 ${path})
-  zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
-  if [[ -s pandora_result.fq ]] ; then
-  echo "pandora/pandora.consensus.fq.gz has results."
-  else
-  exit 1
-  fi
+  gunzip pandora/pandora.consensus.fq.gz
   """
 } 
 

@@ -50,56 +50,26 @@ else {
     exit 1, "Pangenome PRG file not provided -- aborting"
 }
 
-pandora_idx = file(pangenome_prg + '.k15.w14.idx')
-pandora_kmer_prgs = file(pangenome_prg.parent / 'kmer_prgs')
-if (!pandora_idx.exists()) {
-    process pandora_index {
-        memory { 20.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        maxRetries 3
-        container {
-          'shub://rmcolq/pandora:pandora'
-        }
-
-        publishDir pangenome_prg.parent, mode: 'copy', overwrite: true
-
-        input:
-        file pangenome_prg
-
-        output:
-        file "${pangenome_prg}.k15.w14.idx" into pandora_idx
-        file "kmer_prgs" into pandora_kmer_prgs
-
-        """
-        pandora index -w 14 -k 15 ${pangenome_prg}
-        """
-    }
-}
-
-illumina_reads = Channel.from(read_index).splitCsv(header: false, sep:'\t')
-
 process pandora_genotype_illumina {
-    memory { 65.GB * task.attempt }
+    memory { 1.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
     maxRetries 3
     container {
       'shub://rmcolq/pandora:pandora'
     }
 
-    publishDir final_outdir, mode: 'copy', overwrite: true
-
     input:
     file pangenome_prg
-    file illumina_reads
-    file index from pandora_idx
-    file kmer_prgs from pandora_kmer_prgs
+    file read_index
 
     output:
-    set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
+    
 
     """
-    pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina
-    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
-    cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
+    nextflow run ${params.pipeline_root}/pandora_compare_in_chunks.nf --pangenome_prg ${pangenome_prg} --tsv ${read_index} --num_samples 150 --max_covg 50 --max_forks params.max_forks -c ${params.pipeline_root}/nextflow/nextflow.config
+    cat pandora_multisample_genotyped.vcf >> vcf_header.txt
+    mv vcf_header.txt pandora_multisample_genotyped.vcf
+    cat pandora_multisample.matrix >> matrix_header.txt
+    mv matrix_header.txt pandora_multisample.matrix
     """
 }

@@ -19,7 +19,7 @@ def load_dfs(directory):
     return dfs
 
 def plot_graphs(items, x_max, y_label):
-    for i in range(5):
+    for i in range(7):
         # Define plot
         fig, ax = plt.subplots()
         fig.set_size_inches(16, 12)
@@ -44,31 +44,37 @@ def plot_graphs(items, x_max, y_label):
         # Make a scatter plot
         for x in items:
             if len(x['name'].values) > 0:
-                if x['name'].values[0].startswith("pandora_genotyped_full"):
+                if "bin" in x['name'].values[0]:
+                    continue
+                elif x['name'].values[0].startswith("pandora_genotyped_full"):
                     x['name'] = "pandora_genotyped_nanopore_full"
                 elif x['name'].values[0].startswith("pandora_genotyped_30"):
                     x['name'] = "pandora_genotyped_nanopore_30"
                 print("add df", x['name'].values[0], "to graph")
-                if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall"):
-                    col = colormap_pandora(0)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(50)
+                if (x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall")) and i > 0:
+                    col = colormap_pandora(75)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
-                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 0:
-                    col = colormap_pandora(100)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(150)
-                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
-                elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 1:
+                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 5:
                     col = colormap_pandora(200)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(250)
+                    if "ref" in x['name'].values[0] or "bin" in x['name'].values[0]:
+                        col = colormap_pandora(225)
                     ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
-                elif x['name'].values[0].startswith("snippy") and i > 2:
+                elif x['name'].values[0].startswith("pandora_genotyped_illumina_30") and i > 4:
+                    col = colormap_pandora(250)
+                    if "ref" in x['name'].values[0] or "bin" in x['name'].values[0]:
+                        col = colormap_pandora(275)
+                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30"):
+                    col = colormap_pandora(0)
+                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                elif x['name'].values[0].startswith("pandora_genotyped_nanopore_discovery") and i > 3:
+                    col = colormap_pandora(150)
+                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                elif x['name'].values[0].startswith("snippy") and i > 1:
                     col = colormap_snippy(snippy_i*20)
                     ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                     snippy_i += 1
-                elif x['name'].values[0].startswith("nanopolish") and i > 3:
+                elif x['name'].values[0].startswith("nanopolish") and i > 2:
                     col = colormap_nanopolish(nanopolish_i*20)
                     ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
                     nanopolish_i += 1
@@ -82,7 +88,7 @@ def plot_graphs(items, x_max, y_label):
             hl = sorted(zip(handles, labels),key=operator.itemgetter(1))
             handles2, labels2 = zip(*hl)
             ax.legend(handles2, labels2, frameon=False, loc='lower right')
-            plt.savefig('roc%d.png' %i, transparent=True)
+            plt.savefig('zam_roc%d.png' %i, transparent=True)
         else:
             print(handles, labels)
 

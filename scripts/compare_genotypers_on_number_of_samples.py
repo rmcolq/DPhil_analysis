@@ -94,7 +94,7 @@ def run_compare(snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mas
     '''Runs minos command to compare pair of VCFs to dnadiff snps file'''
     if len(glob.glob("tmp/compare." + name + "*")) == 0:
         minos_binary = find_binary('minos')
-        command = ' '.join([minos_binary, 'check_snps', snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, "tmp/compare." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches", "--max_soft_clipped", str(5)])
+        command = ' '.join([minos_binary, 'check_snps', snps_file, truth1, truth2, vcf1, vcf2, vcf_ref, "tmp/compare." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--allow_flank_mismatches", "--max_soft_clipped", str(5)])#, "--no_filter_cluster"])
         if mask1:
             command += " --exclude_bed1 " + mask1
         if mask2:
@@ -235,7 +235,7 @@ def unzip_truths(truths):
         unzipped_truths.append(new_name)
     return unzipped_truths
 
-def compare_pair(pair, names):
+def compare_pair(pair, names, recall_flank):
     (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = pair[0]
     (num2, id2, zipped_truth2, sample_dir2, mask2, truth2) = pair[1]
     print("Run on sample pair", id1, id2)
@@ -248,7 +248,7 @@ def compare_pair(pair, names):
         pair_names.remove(name)
         comp_name = name + "_" + id1 + "_" + id2
         if len(glob.glob("tmp/compare." + comp_name + "*")) == 0:
-            run_compare("tmp/dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, comp_name, args.recall_flank, mask1, mask2)
+            run_compare("tmp/dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, comp_name, recall_flank, mask1, mask2)
             append_stats_y(name, comp_name)
     for name in pair_names:
         print("Add null compare stats for", name, id1, id2)
@@ -286,7 +286,7 @@ if not os.path.exists('tmp'):
 
 # y
 for pair in itertools.combinations(index.itertuples(), 2):
-    compare_pair(pair, names)
+    compare_pair(pair, names, args.recall_flank)
 # x
 for s in index.itertuples():
     (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = s

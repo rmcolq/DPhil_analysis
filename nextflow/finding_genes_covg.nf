@@ -182,7 +182,7 @@ process pandora_map_path_nano {
   val(max_covg) from max_covg_nano
   
   output:
-  set file("pandora_result.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_nano
+  set file("pandora/pandora.consensus.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_nano
   
   """
   pandora map -p ${prg} -r ${reads} --max_covg ${max_covg}
@@ -191,6 +191,8 @@ process pandora_map_path_nano {
   else
   exit 1
   fi
+  
+  gunzip pandora/pandora.consensus.fq.gz
   """
 } 
 
@@ -212,7 +214,7 @@ process pandora_map_path_illumina {
   val(max_covg) from max_covg_ill
   
   output:
-  set file("pandora_result.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_illumina
+  set file("pandora/pandora.consensus.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_illumina
   
   """
   pandora map -p ${prg} -r ${reads} --illumina --max_covg ${max_covg}
@@ -221,6 +223,8 @@ process pandora_map_path_illumina {
   else
   exit 1
   fi
+
+  gunzip pandora/pandora.consensus.fq.gz
   """
 } 
 

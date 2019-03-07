@@ -38,9 +38,7 @@ def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name
     filtered_truth_vcf = truth_vcf
     filtered_query_vcf = query_vcf
     if max_var_length > 0:
-        restrict_to_snps(truth_vcf, max_var_length)
         restrict_to_snps(query_vcf, max_var_length)
-        filtered_truth_vcf = truth_vcf.replace(".vcf",".filtered.vcf")
         filtered_query_vcf = query_vcf.replace(".vcf",".filtered.vcf")
     minos_binary = find_binary('minos')
     command = ' '.join([minos_binary, 'check_recall', filtered_truth_vcf, truth_vcf_ref, filtered_query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--allow_flank_mismatches"])

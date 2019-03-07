@@ -96,6 +96,15 @@ def plot_sam_dist(sam_file, out_prefix, unique=False):
     plt.savefig('%s.sam_mismatch_counts.png' %out_prefix, transparent=True)
 
     fig, ax = plt.subplots()
+    c = num_mismatches
+    c.sort()
+    n, bins, patches = ax.hist(c, max(c)+1, normed=1, histtype='step', cumulative=True, range=(0,15))
+    ax.set(xlabel='Maximum number of mismatch bases', ylabel='Frequency')
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    plt.savefig('%s.sam_mismatch_counts_cumulative.png' %out_prefix, transparent=True)
+
+    fig, ax = plt.subplots()
     df = pd.DataFrame()
     df['lengths']=lengths
     df['num_mismatches']=num_mismatches
@@ -141,6 +150,18 @@ parser.add_argument('--prefix', type=str,
 parser.add_argument('--unique', action='store_true',
                     help='If used, filters only unique sam matches')
 args = parser.parse_args()
+
+SMALL_SIZE = 16
+MEDIUM_SIZE = 24
+BIGGER_SIZE = 30
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 plot_sam_dist(args.sam, args.prefix, args.unique)
 

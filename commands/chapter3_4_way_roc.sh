@@ -22,6 +22,9 @@
 
 ## Copied compare results back to yoda
 #bsub.py 1 logs/rsync_cli_to_yoda_ill rsync -avcr --no-perms rmcolq@ebi-cli.ebi.ac.uk:/nfs/research1/zi/rmcolq/projects/pandora_compare/analysis/compare_trace_and_cardio/ /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/pandora_compare 
+## Again after updated genotyping on 2nd March 2019
+bsub.py 1 logs/rsync_cli_to_yoda rsync -avcr --no-perms rmcolq@ebi-cli.ebi.ac.uk:/nfs/research1/zi/rmcolq/projects/pandora_compare/analysis/compare_trace_and_cardio/ /nfs/lei
+a/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/pandora_compare/020319/
 
 ## Create single sample vcf and ref.fa files for each sample
 mkdir /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/4_way_roc/genotyping
