@@ -289,13 +289,13 @@ process make_plot_nano {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
   
   input:
   file(samfile) from full_sam_nano
   
   output:
-  file("*.sam_mismatch_counts.png") into output_plot_nano
+  file("*.png") into output_plot_nano
   file ("*_list.txt") into count_list_nano
   
   """
@@ -309,13 +309,13 @@ process make_plot_illumina {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   file(samfile) from full_sam_illumina
 
   output:
-  file("*.sam_mismatch_counts.png") into output_plot_ill
+  file("*.png") into output_plot_ill
   file ("*_list.txt") into count_list_illumina
   
   """
@@ -332,13 +332,13 @@ process make_joint_plot {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   file count_files from count_list.collect()
 
   output:
-  file("*joint.sam_mismatch_counts.png") into output_joint_plot
+  file("*.png") into output_joint_plot
 
   """
   #!/usr/bin/env python3

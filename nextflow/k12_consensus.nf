@@ -208,7 +208,7 @@ process make_plot {
   set file(samfile), val(type), val(wflanks) from output_sam
   
   output:
-  file("${wflanks}_${type}.sam_mismatch_counts.png") into output_plot
+  file("${wflanks}_${type}.*.png") into output_plot
   file ("${wflanks}_${type}_list.txt") into count_list
 
   """
@@ -229,7 +229,7 @@ process make_joint_plot {
   file count_files from count_list.collect()
 
   output:
-  file("*joint.sam_mismatch_counts.png") into output_joint_plot
+  file("*joint.*sam_mismatch_counts.png") into output_joint_plot
 
   """
 #!/usr/bin/env python3

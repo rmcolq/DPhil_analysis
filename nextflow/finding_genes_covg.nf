@@ -110,7 +110,7 @@ process simulate_nanopore_reads {
   """
 }
 
-ill_types = Channel.from("HS10", "HS20", "HS25", "MS")
+ill_types = Channel.from("HS25", "MSv3")
 process simulate_illumina_reads {
   memory { 20.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}

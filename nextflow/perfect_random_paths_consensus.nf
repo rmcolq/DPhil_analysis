@@ -105,22 +105,22 @@ process pandora_map_path_nano {
   
   input:
   file prg from pangenome_prg
-  file reads from path_nano
+  file read from path_nano
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora_result.fq"), file("${reads}") into pandora_output_path_nano
+  set file("pandora_result.fq"), file("${read}") into pandora_output_path_nano
   
   """
-  pandora map -p ${prg} -r ${reads} --genome_size 1000
+  pandora map -p ${prg} -r ${read} --genome_size 1000
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
   exit 1
   fi
 
-  v=\$(head -n1 ${path})
+  v=\$(head -n1 ${read})
   zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
   if [[ -s pandora_result.fq ]] ; then
   echo "pandora/pandora.consensus.fq.gz has results."
@@ -142,22 +142,22 @@ process pandora_map_path_illumina {
   
   input:
   file prg from pangenome_prg
-  file reads from path_illumina
+  file read from path_illumina
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
   
   output:
-  set file("pandora_result.fq"), file("${reads}") into pandora_output_path_illumina
+  set file("pandora_result.fq"), file("${read}") into pandora_output_path_illumina
   
   """
-  pandora map -p ${prg} -r ${reads} --illumina --genome_size 1000
+  pandora map -p ${prg} -r ${read} --illumina --genome_size 1000
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
   exit 1
   fi
 
-  v=\$(head -n1 ${path})
+  v=\$(head -n1 ${read})
   zgrep -A3 \$(echo \${v:1:-3}) pandora/pandora.consensus.fq.gz > pandora_result.fq
   if [[ -s pandora_result.fq ]] ; then
   echo "pandora/pandora.consensus.fq.gz has results."
@@ -219,13 +219,13 @@ process make_plot_nano {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
   
   input:
   file(samfile) from full_sam_nano
   
   output:
-  file("*.sam_mismatch_counts.png") into output_plot_nano
+  file("*.png") into output_plot_nano
   file ("*_list.txt") into count_list_nano
   
   """
@@ -239,13 +239,13 @@ process make_plot_illumina {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   file(samfile) from full_sam_illumina
 
   output:
-  file("*.sam_mismatch_counts.png") into output_plot_ill
+  file("*.png") into output_plot_ill
   file ("*_list.txt") into count_list_illumina
   
   """
@@ -262,13 +262,13 @@ process make_joint_plot {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   file count_files from count_list.collect()
 
   output:
-  file("*joint.sam_mismatch_counts.png") into output_joint_plot
+  file("*.png") into output_joint_plot
 
   """
   #!/usr/bin/env python3

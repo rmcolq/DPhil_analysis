@@ -17,7 +17,7 @@ def evaluate_gene_finding(prefix, covg, truth, fastq):
     r = float(len(tp))/(len(tp)+len(fn))
 
     with open("results.tsv", 'w') as f:
-        f.write("%s\t%s\t%d\t%d\t%d\t%f\t%f\n" %(prefix, covg, tp, fn, tn, p, r))
+        f.write("%s\t%s\t%d\t%d\t%d\t%f\t%f\n" %(prefix, covg, tp, fn, fn, p, r))
 
 parser = argparse.ArgumentParser(description='Takes pandora FASTQ and a text file list of genes that are true, and evaluates precision and recall')
 parser.add_argument('--fastq', type=str,

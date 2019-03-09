@@ -202,7 +202,7 @@ process make_plot {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
   
   input:
   set file(samfile), val(type), val(wflanks) from output_sam
@@ -223,13 +223,13 @@ process make_joint_plot {
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   file count_files from count_list.collect()
 
   output:
-  file("*joint.sam_mismatch_counts.png") into output_joint_plot
+  file("*sam_mismatch_counts.png") into output_joint_plot
 
   """
 #!/usr/bin/env python3
@@ -258,7 +258,7 @@ process alignqc_report {
   container {
       'shub://rmcolq/Singularity_recipes:alignqc'
   }
-  publishDir final_outdir, mode: 'copy', overwrite: false
+  publishDir final_outdir, mode: 'copy', overwrite: true
 
   input:
   set file(bamfile), val(type) from output_sam_for_alignqc

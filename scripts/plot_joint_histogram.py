@@ -35,6 +35,19 @@ def plot_count_hist(file1, file2, prefix=""):
     ax.set(xlabel='Number of mismatch bases', ylabel='Frequency')
     plt.savefig(prefix + 'joint.sam_mismatch_counts.png', transparent=True)
 
+    fig, ax = plt.subplots()
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    c1 = count_dict[types[0]]
+    c2 = count_dict[types[1]]
+    c1.sort()
+    c2.sort()
+    n, bins, patches = ax.hist([c1,c2], max(max(c1),max(c2))+1, normed=1, histtype='step', label=types, cumulative=True, range=(0,15))
+    handles, labels = ax.get_legend_handles_labels()
+    ax.legend(handles, labels, loc=4)
+    ax.set(xlabel='Maximum number of mismatch bases', ylabel='Frequency')
+    plt.savefig(prefix + 'joint.step_sam_mismatch_counts.png', transparent=True)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plots a histogram of the number of mismatches from a pair of count files.')
     parser.add_argument('--f1', type=str,

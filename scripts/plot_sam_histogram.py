@@ -96,12 +96,12 @@ def plot_sam_dist(sam_file, out_prefix, unique=False):
     plt.savefig('%s.sam_mismatch_counts.png' %out_prefix, transparent=True)
 
     fig, ax = plt.subplots()
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
     c = num_mismatches
     c.sort()
     n, bins, patches = ax.hist(c, max(c)+1, normed=1, histtype='step', cumulative=True, range=(0,15))
     ax.set(xlabel='Maximum number of mismatch bases', ylabel='Frequency')
-    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
     plt.savefig('%s.sam_mismatch_counts_cumulative.png' %out_prefix, transparent=True)
 
     fig, ax = plt.subplots()
@@ -118,23 +118,24 @@ def plot_sam_dist(sam_file, out_prefix, unique=False):
     scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=hot)
 
     # Plot each scatter
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
     for i in range(len(uniq)):
         indx = df['indel'] == uniq[i]
         plt.scatter(df['lengths'][indx], df['num_mismatches'][indx], c=scalarMap.to_rgba(i), label=uniq[i])
     ax.set(xlabel='Length of sequence', ylabel='Number of mismatch bases')
-    plt.legend(loc='upper left')
-    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    plt.legend(loc='upper right')
     plt.savefig('%s.sam_length_scatter.png' %out_prefix, transparent=True)
 
     fig, ax = plt.subplots()
+    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
+    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
     s = plt.scatter(df['lengths'], df['num_mismatches'], c=df['largest_indel'], cmap='hot')
     ax.set(xlabel='Length of sequence', ylabel='Number of mismatch bases')
     max_diffs = max(df['num_mismatches'].values)
     s.set_clim([0,max_diffs])
     cb = fig.colorbar(s)
-    plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
-    plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    plt.legend(loc='upper right')
     plt.savefig('%s.sam_length_scatter2.png' %out_prefix, transparent=True)
 
     with open('%s_list.txt' %out_prefix, 'w') as f:

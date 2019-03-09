@@ -250,7 +250,7 @@ process pandora_genotype_nanopore {
 
     output:
     set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
-    set val("Pandora\tNanopore\t100"), file(timeinfo.txt) into pandora_full_time
+    set val("Pandora\tNanopore\t100"), file("timeinfo.txt") into pandora_full_time
 
     """
     pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype 
@@ -306,7 +306,7 @@ process pandora_genotype_nanopore_30 {
 
     output:
     set(file("pandora_genotyped_30X.vcf"), file("pandora_genotyped_30X.ref.fa")) into pandora_30X_vcf
-    set val("Pandora\tNanopore\t30"), file(timeinfo.txt) into pandora_30X_time
+    set val("Pandora\tNanopore\t30"), file("timeinfo.txt") into pandora_30X_time
 
     """
     echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 &> pandora.log" > command.sh
@@ -392,7 +392,7 @@ process nanopolish_genotype_nanopore {
 
     output:
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
-    set val("Nanopolish\tNanopore\t100"), file(timeinfo.txt) into nanopolish_time
+    set val("Nanopolish\tNanopore\t100"), file("timeinfo.txt") into nanopolish_time
 
     """
     bwa index ${reference_assembly}
@@ -411,7 +411,7 @@ process nanopolish_genotype_nanopore {
       --ploidy 1
     &> nanopolish.log" > command.sh
         
-    /usr/bin/time -v bash command.sh &> timeinfo.txt
+    time -v bash command.sh &> timeinfo.txt
     cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_full.vcf
     for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
     do
@@ -454,12 +454,12 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
-        set val("Snippy\tIllumina\t100"), file(timeinfo.txt) into snippy_time
+        set val("Snippy\tIllumina\t100"), file("timeinfo.txt") into snippy_time
 
         """
         echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2} &> snippy.log" > command.sh
         
-        /usr/bin/time -v bash command.sh &> timeinfo.txt
+        time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -486,7 +486,7 @@ else if (params.illumina_reads_1) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
-        set val("Snippy\tIllumina\t100"), file(timeinfo.txt) into snippy_time
+        set val("Snippy\tIllumina\t100"), file("timeinfo.txt") into snippy_time
 
         """
         v=${illumina_reads_1}
@@ -503,7 +503,7 @@ else if (params.illumina_reads_1) {
         mkdir snippy_tmp
         echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp &> snippy.log" > command.sh
         
-        /usr/bin/time -v bash command.sh &> timeinfo.txt
+        time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -529,7 +529,7 @@ if (params.illumina_reads_1) {
 
         output:
         set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
-        set val("Pandora\tIllumina\t100"), file(timeinfo.txt) into pandora_illumina_time
+        set val("Pandora\tIllumina\t100"), file("timeinfo.txt") into pandora_illumina_time
 
         """
         echo "pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina &> pandora.log" > command.sh
@@ -603,7 +603,7 @@ process compare_vcfs {
         file('*.csv') into df
 
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 14 --max_var_length 11
         """
 }
 /*
@@ -625,7 +625,7 @@ process compare_vcfs_ref {
         file('*.csv') into df_ref
         
         """
-        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 9 --exclude_ref_alleles
+        python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 14 --exclude_ref_alleles --max_var_length 11
         """
 }
 

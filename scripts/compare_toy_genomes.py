@@ -214,7 +214,7 @@ def compare_results(result_dir, recall_flank, precision_flank, max_var_length):
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
 parser.add_argument('--dir', '-d', type=str,
                     help='Results directory')
-parser.add_argument('--recall_flank', '-fr', type=int, default=15,
+parser.add_argument('--recall_flank', '-fr', type=int, default=5,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when evaluating vcf alleles')

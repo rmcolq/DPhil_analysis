@@ -84,7 +84,7 @@ process combine {
     file("${pangenome_prg}.w14.k15.idx")
 
     """
-    pandora merge_index --outfile ${pangenome_prg}.w14.k15.idx \$(ls *.idx)
+    pandora merge_index --outfile ${pangenome_prg}.k15.w14.idx \$(ls *.idx)
     """
 }
 
