@@ -12,7 +12,7 @@
 
 mkdir /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/perfect_random_paths_genotyping
 cd /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/perfect_random_paths_genotyping
-bsub.py 3.0 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/logs/perfect_random_paths_genotyping nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/perfect_random_paths_genotyping.nf --pangenome_prg /nfs/leia/research/iqbal/rmcolq/projects/pangenome_prg/ecoli/050319_all/ecoli_pangenome_PRG_050319.fa -w /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/perfect_random_paths_genotyping/work2 -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
+bsub.py 3.0 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/logs/perfect_random_paths_genotyping nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/perfect_random_paths_genotyping.nf --pangenome_prg /nfs/leia/research/iqbal/rmcolq/projects/pangenome_prg/ecoli/050319_all/ecoli_pangenome_PRG_050319.fa -w /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/perfect_random_paths_genotyping/work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
 
 #mkdir /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/k12_genotyping
 #cd /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/analysis/k12_genotyping
