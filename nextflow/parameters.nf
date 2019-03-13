@@ -155,7 +155,7 @@ process simulate_illumina_reads {
   file(ref_fasta) from ill_genome
 
   output:
-  file("simulated*.fq") into sim_reads_illumina
+  file("simulated*.f*") into sim_reads_illumina
 
   """
   art_illumina -ss HS25 -i ${ref_fasta} -l 150 -f 100 -o simulated_illumina
@@ -163,7 +163,12 @@ process simulate_illumina_reads {
   echo "simulated.fq has data."
   else
   rm simulated*.fq
+  if [[ -s simulated*.aln ]] ; then
+  grep -v "#" simulated*.aln | grep -v "@" > simulated_illumina.fa
+  fi
+  if [[ -s simulated*.fa ]] ; then
   exit 1
+  fi
   fi
   """
 }
@@ -186,7 +191,7 @@ process pandora_map_path_nano {
   set val("Nanopore"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_nano
   
   """
-  echo "pandora map -p ${prg} -r ${reads} --max_covg 100 &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --max_covg 100 -w ${w} -k ${k} &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> maptimeinfo.txt
 
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
@@ -217,7 +222,7 @@ process pandora_map_path_illumina {
   set val("Illumina"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_illumina
   
   """
-  echo "pandora map -p ${prg} -r ${reads} --illumina --max_covg 100 &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --illumina --max_covg 100 -w ${w} -k ${k} &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> maptimeinfo.txt
 
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then

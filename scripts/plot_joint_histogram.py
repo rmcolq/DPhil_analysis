@@ -4,17 +4,18 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import argparse
 
-def plot_count_hist(file1, file2, prefix=""):
+def plot_count_hist(files, prefix=""):
     print("parameters")
-    print(file1, file2, prefix)
+    print(files, prefix)
     count_dict = {}
-    for filepath in file1, file2:
+    for filepath in files:
         print(filepath)
         with open(filepath, 'r') as f:
             line = f.readline()
-            stype = line.split('\t')[0].split('_')[-1]
+            stype = line.split('\t')[0]
             counts = line.split('\t')[1].split(',')
             icounts = [int(i) for i in counts if len(i) > 0]
+            icounts.sort()
             count_dict[stype] = icounts
 
     plt.rcParams['figure.figsize'] = 10,6
@@ -23,7 +24,7 @@ def plot_count_hist(file1, file2, prefix=""):
     types = list(count_dict.keys())
     print(count_dict.keys())
     print(types)
-    ax.hist([count_dict[types[0]], count_dict[types[1]]],
+    ax.hist([count_dict[t] for t in types],
           density=True,
           label=types,
           align="mid",
@@ -38,22 +39,22 @@ def plot_count_hist(file1, file2, prefix=""):
     fig, ax = plt.subplots()
     plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
     plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
-    c1 = count_dict[types[0]]
-    c2 = count_dict[types[1]]
-    c1.sort()
-    c2.sort()
-    n, bins, patches = ax.hist([c1,c2], max(max(c1),max(c2))+1, normed=1, histtype='step', label=types, cumulative=True, range=(0,15))
+    ms = [max(count_dict[t]) for t in types]
+    m = max(ms)
+    n, bins, patches = ax.hist([count_dict[t] for t in types], m+1, density=True, histtype='step', label=types, cumulative=True, range=(0,15))
     handles, labels = ax.get_legend_handles_labels()
-    ax.legend(handles, labels, loc=4)
+    ax.legend(handles, labels, loc=4, frameon=False)
     ax.set(xlabel='Maximum number of mismatch bases', ylabel='Frequency')
     plt.savefig(prefix + 'joint.step_sam_mismatch_counts.png', transparent=True)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Plots a histogram of the number of mismatches from a pair of count files.')
-    parser.add_argument('--f1', type=str,
+    parser.add_argument('--f1', type=str, default="",
                     help='Count file 1')
-    parser.add_argument('--f2', type=str,
+    parser.add_argument('--f2', type=str, default="",
                     help='Count file 2')
+    parser.add_argument('--f', type=str, default="",
+                    help='Count files')
     parser.add_argument('--prefix', type=str, default="",
                     help='String to add to outfile name')
     args = parser.parse_args()
@@ -69,5 +70,15 @@ if __name__ == '__main__':
     plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
     plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
     plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
+    
+    files = []
+    if args.f != "":
+        files = args.f.split()
+    elif args.f1 != "" and args.f2 != "":
+        files.append(args.f1)
+        files.append(args.f2)
+    if len(files) == 0:
+        print("No files provided")
+        quit()
 
-    plot_count_hist(args.f1, args.f2, args.prefix)
+    plot_count_hist(files, args.prefix)

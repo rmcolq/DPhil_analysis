@@ -232,22 +232,7 @@ process make_joint_plot {
   file("*sam_mismatch_counts.png") into output_joint_plot
 
   """
-#!/usr/bin/env python3
-import sys
-sys.path.append('${params.pipeline_root}/scripts')
-from plot_joint_histogram import plot_count_hist
-
-wflank_dict = {}
-for file in "${count_files}".split():
-    wflank = file.split('_')[0]
-    if wflank not in wflank_dict.keys():
-        wflank_dict[wflank] = []
-    wflank_dict[wflank].append(file)
-    
-for prefix in wflank_dict.keys():
-    if len(wflank_dict[prefix]) == 2:
-       print(wflank_dict[prefix][0], wflank_dict[prefix][1], prefix)
-       plot_count_hist(wflank_dict[prefix][0], wflank_dict[prefix][1], prefix + "_flanks_")
+  python3 ${params.pipeline_root}/scripts/plot_joint_histogram.py --f \"${count_files}\"
   """
 }
 

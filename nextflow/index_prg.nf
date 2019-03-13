@@ -6,6 +6,8 @@ params.final_outdir = "."
 params.max_forks = 10
 params.chunk_size = 4000
 params.num_prg = 0
+params.w = 14
+params.k = 15
 
 if (params.help){
     log.info"""
@@ -21,6 +23,8 @@ if (params.help){
       --final_outdir
       --max_forks	INT	Number of consecutive prgs to index
       --chunk_size	INT	Chunks of PRG file to work on in parallel, needs to be multiple of 4000
+      --w		INT
+      --k		INT
 
     """.stripIndent()
 
@@ -51,18 +55,22 @@ process pandora_index {
 
     input:
     file pangenome_prg
+    val w from params.w
+    val k from params.k
     val offset from nums
     val num_prg from params.chunk_size
 
     output:
     file("prg.fa.*.idx") into indexes
-    file("kmer_prgs/*") into kps
+    file("kmer_prgs") into kd1
+    file("kmer_prgs/*") into kd2
+    file("kmer_prgs/*") into kd3
 
     """
     a=\$(( 2 * ${offset} + 1 ))
     b=\$(( 2 * ${num_prg} ))
     tail -n+\$a ${pangenome_prg} | head -n \$b > prg.fa
-    pandora index prg.fa --offset ${offset}
+    pandora index prg.fa --offset ${offset} -w ${w} -k ${k}
     """
 }
 
@@ -78,13 +86,62 @@ process combine {
 
     input:
     file pangenome_prg
+    val w from params.w
+    val k from params.k
     file("prg.fa.*.idx") from indexes.collect()
 
     output:
-    file("${pangenome_prg}.w14.k15.idx")
+    file("${pangenome_prg}.k*.w*.idx")
 
     """
-    pandora merge_index --outfile ${pangenome_prg}.k15.w14.idx \$(ls *.idx)
+    pandora merge_index --outfile ${pangenome_prg}.k${k}.w${w}.idx \$(ls *.idx)
+    """
+}
+
+process publish_kd1 {
+    memory { 1.MB * task.attempt }
+    errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+    maxRetries 1
+    container {
+      'shub://rmcolq/pandora:pandora'
+    } 
+    maxForks params.max_forks
+
+    publishDir pangenome_prg.parent, mode: 'copy', overwrite: false
+    
+    input:
+    file pangenome_prg
+    file(kp) from kd1
+
+    output:
+    file("${kp}")
+    val("wait") into out_kd1
+
+    """
+    """
+}
+
+process publish_kd2 {
+    memory { 1.MB * task.attempt }
+    errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+    maxRetries 1
+    container {
+      'shub://rmcolq/pandora:pandora'
+    } 
+    maxForks params.max_forks
+    
+    publishDir pangenome_prg.parent+"/kmer_prgs", mode: 'copy', overwrite: false
+    
+    input:
+    file pangenome_prg
+    file(kp) from kd2
+    val(wait) from out_kd1
+    
+    output:
+    file("${kp}")
+    val("wait") into out_kd2
+    
+    """
     """
 }
 
@@ -94,17 +151,18 @@ process publish_kgs {
     maxRetries 1
     container {
       'shub://rmcolq/pandora:pandora'
-    } 
+    }
     maxForks params.max_forks
-    
-    publishDir pangenome_prg.parent+"/kmer_prgs", mode: 'copy', overwrite: true
-    
+
+    publishDir pangenome_prg.parent+"/kmer_prgs/", mode: 'copy', overwrite: true
+
     input:
     file pangenome_prg
-    file(kp) from kps
+    file(kp) from kd3
+    val(wait) from out_kd2
 
     output:
-    file(kp) 
+    file("${kp}/*")
 
     """
     """

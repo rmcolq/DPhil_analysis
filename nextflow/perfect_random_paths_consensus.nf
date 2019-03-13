@@ -113,7 +113,12 @@ process pandora_map_path_nano {
   set file("pandora_result.fq"), file("${read}") into pandora_output_path_nano
   
   """
-  pandora map -p ${prg} -r ${read} --genome_size 1000
+  for i in {1..30}
+  do
+  cat ${read} >> reads.fa
+  done  
+
+  pandora map -p ${prg} -r reads.fa --genome_size 1000
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
@@ -150,7 +155,12 @@ process pandora_map_path_illumina {
   set file("pandora_result.fq"), file("${read}") into pandora_output_path_illumina
   
   """
-  pandora map -p ${prg} -r ${read} --illumina --genome_size 1000
+  for i in {1..30}
+  do
+  cat ${read} >> reads.fa
+  done
+
+  pandora map -p ${prg} -r reads.fa --illumina --genome_size 1000
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
   echo "pandora/pandora.consensus.fq.gz exists"
   else
@@ -180,11 +190,16 @@ process compare_output_path_to_input_nano {
   set file(out_path), file(in_path) from pandora_output_path_nano
 
   output:
-  file("out.sam") into output_sam_nano
+  file("with_flanks.sam") into output_sam_nano_flanks
+  file("without_flanks.sam") into output_sam_nano_none
 
   """
   bwa index ${in_path}
-  bwa mem ${in_path} ${out_path} > out.sam
+  bwa mem ${in_path} ${out_path} > with_flanks.sam
+
+  python3 ${params.pipeline_root}/scripts/remove_flank.py --in_fq ${out_path} --out_fa "out.fa" --flank_size 28
+  bwa mem ${in_path} out.fa > without_flanks.sam
+  python3 ${params.pipeline_root}/scripts/filter_bad_sam.py --sam without_flanks.sam
   """
 }
 
@@ -201,18 +216,28 @@ process compare_output_path_to_input_illumina {
   set file(out_path), file(in_path) from pandora_output_path_illumina
   
   output:
-  file("out.sam") into output_sam_illumina
+  file("with_flanks.sam") into output_sam_illumina_flanks
+  file("without_flanks.sam") into output_sam_illumina_none
   
   """
   bwa index ${in_path}
-  bwa mem ${in_path} ${out_path} > out.sam
+  bwa mem ${in_path} ${out_path} > with_flanks.sam
+
+  python3 ${params.pipeline_root}/scripts/remove_flank.py --in_fq ${out_path} --out_fa "out.fa" --flank_size 28
+  bwa mem ${in_path} out.fa > without_flanks.sam
+  python3 ${params.pipeline_root}/scripts/filter_bad_sam.py --sam without_flanks.sam
+
   """ 
 } 
 
-output_sam_nano.collectFile(name: final_outdir/'pandora_random_paths_nano.sam').set { full_sam_nano }
-output_sam_illumina.collectFile(name: final_outdir/'pandora_random_paths_illumina.sam').set { full_sam_illumina }
+output_sam_nano_flanks.collectFile(name: final_outdir/'with_flanks_Nanopore.sam').set { full_sam_nano_flanks }
+output_sam_nano_none.collectFile(name: final_outdir/'without_flanks_Nanopore.sam').set { full_sam_nano_none }
+output_sam_illumina_flanks.collectFile(name: final_outdir/'with_flanks_Illumina.sam').set { full_sam_illumina_flanks }
+output_sam_illumina_none.collectFile(name: final_outdir/'without_flanks_Illumina.sam').set { full_sam_illumina_none }
 
-process make_plot_nano {
+full_sam_nano_flanks.concat( full_sam_nano_none, full_sam_illumina_flanks, full_sam_illumina_none ).set { full_sam }
+
+process make_plot_sam {
   memory { 0.1.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
   maxRetries 1
@@ -222,43 +247,21 @@ process make_plot_nano {
   publishDir final_outdir, mode: 'copy', overwrite: true
   
   input:
-  file(samfile) from full_sam_nano
+  file(samfile) from full_sam
   
   output:
-  file("*.png") into output_plot_nano
-  file ("*_list.txt") into count_list_nano
+  file("*.png") into output_plot
+  file ("*_list.txt") into count_list
   
   """
-  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "Nanopore"
+  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "${samfile.simpleName}"
   """
 }
-process make_plot_illumina {
-  memory { 0.1.GB * task.attempt }
-  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
-  maxRetries 1
-  container {
-      'shub://rmcolq/Singularity_recipes:minos'
-  }
-  publishDir final_outdir, mode: 'copy', overwrite: true
-
-  input:
-  file(samfile) from full_sam_illumina
-
-  output:
-  file("*.png") into output_plot_ill
-  file ("*_list.txt") into count_list_illumina
-  
-  """
-  python3 ${params.pipeline_root}/scripts/plot_sam_histogram.py --sam "${samfile}" --prefix "Illumina"
-  """
-} 
-
-count_list_nano.concat( count_list_illumina ).set { count_list }
 
 process make_joint_plot {
   memory { 0.1.GB * task.attempt }
-  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
-  maxRetries 1
+  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
+  maxRetries 3
   container {
       'shub://rmcolq/Singularity_recipes:minos'
   }
@@ -268,15 +271,10 @@ process make_joint_plot {
   file count_files from count_list.collect()
 
   output:
-  file("*.png") into output_joint_plot
+  file("*sam_mismatch_counts.png") into output_joint_plot
 
   """
-  #!/usr/bin/env python3
-  import sys
-  sys.path.append('${params.pipeline_root}/scripts')
-  from plot_joint_histogram import plot_count_hist
-
-  s = "${count_files}".split()
-  plot_count_hist(s[0],s[1])
+  python3 ${params.pipeline_root}/scripts/plot_joint_histogram.py --f \"${count_files}\"
   """
 }
+

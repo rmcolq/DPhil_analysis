@@ -251,5 +251,5 @@ process evaluate_genes_found {
   """
 }
 
-output_tsv.collectFile(name: 'gene_finding_by_covg.tsv')
+output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_covg.tsv")
 
