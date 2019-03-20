@@ -81,7 +81,10 @@ process simulate_genome {
   """
 }
  
-nano_lens = Channel.from(10000,20000,30000,40000,50000)
+nano_types = Channel.from("ecoli_R9_2D", "ecoli_R9_2D", "ecoli_R9_1D")
+nano_lengths = Channel.from(10000, 50000, 10000)
+nano_types.combine(nano_lengths).set { nano_profile }
+
 process simulate_nanopore_reads {
   memory { 10.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -93,24 +96,26 @@ process simulate_nanopore_reads {
 
   input:
   file ref_fasta from nano_genome
-  val max_len from nano_lens
+  set val(type), val(max_len) from nano_profile
 
   output:
   file("simulated*.fa") into sim_reads_nano
 
   """
-  nanosim-h -p ecoli_R9_2D -n 150000 ${ref_fasta} --unalign-rate 0 --max-len ${max_len}
+  nanosim-h -p ${type} -n 150000 ${ref_fasta} --unalign-rate 0 --max-len ${max_len} --circular
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
   rm simulated.fa
   exit 1
   fi 
-  mv simulated.fa simulated_nanopore_${max_len}.fa
+  mv simulated.fa simulated_nanopore_${type}_${max_len}.fa
   """
 }
 
 ill_types = Channel.from("HS25", "MSv3")
+ill_lengths = Channel.from(150, 250)
+ill_types.combine(ill_lengths).set { ill_profile }
 process simulate_illumina_reads {
   memory { 20.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -122,18 +127,23 @@ process simulate_illumina_reads {
 
   input:
   file(ref_fasta) from ill_genome
-  val(type) from ill_types
+  set val(type), val(length) from ill_profile
 
   output:
-  file("simulated*.fq") into sim_reads_illumina
+  file("simulated_illumina_${type}.f*") into sim_reads_illumina
 
   """
-  art_illumina -ss ${type} -i ${ref_fasta} -l 150 -f 300 -o simulated_illumina_${type}
-  if [[ -s simulated*.fq ]] ; then
+  art_illumina -ss ${type} -i ${ref_fasta} -l ${length} -f 300 -o simulated_illumina_${type}
+  if [[ -s simulated_illumina_${type}.fq ]] ; then
   echo "simulated.fq has data."
   else
   rm simulated*.fq
+  if [[ -s simulated_illumina_${type}.aln ]] ; then
+  grep -v "#" simulated_illumina_${type}.aln | grep -v "@" > simulated_illumina_${type}.fa
+  fi
+  if [[ -s simulated_illumina_${type}.fa ]] ; then
   exit 1
+  fi
   fi
   """
 }
@@ -165,6 +175,7 @@ if (!pandora_idx.exists()) {
 }
 
 max_covg_nano = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
+sim_reads_nano.combine(max_covg_nano).set { nano_args }
 process pandora_map_path_nano {
   memory { 30.GB * task.attempt }
   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -176,10 +187,9 @@ process pandora_map_path_nano {
   
   input:
   file prg from pangenome_prg
-  file(reads) from sim_reads_nano
+  set file(reads), val(max_covg) from nano_args
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
-  val(max_covg) from max_covg_nano
   
   output:
   set file("pandora/pandora.consensus.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_nano
@@ -197,6 +207,7 @@ process pandora_map_path_nano {
 } 
 
 max_covg_ill = Channel.from(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 200, 250, 300)
+sim_reads_illumina.combine(max_covg_ill).set { ill_args }
 process pandora_map_path_illumina {
   memory { 30.GB * task.attempt }
   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -208,10 +219,9 @@ process pandora_map_path_illumina {
   
   input:
   file prg from pangenome_prg
-  file(reads) from sim_reads_illumina
+  set file(reads), val(max_covg) from ill_args
   file index from pandora_idx
   file kmer_prgs from pandora_kmer_prgs
-  val(max_covg) from max_covg_ill
   
   output:
   set file("pandora/pandora.consensus.fq"), file("${reads}"), val("${max_covg}") into pandora_output_path_illumina
@@ -231,7 +241,7 @@ process pandora_map_path_illumina {
 pandora_output_path_illumina.concat(pandora_output_path_nano).set { consensus }
 
 process evaluate_genes_found {
-  memory { 0.01.GB * task.attempt }
+  memory { 0.1.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
   maxRetries 1
   maxForks params.max_forks
@@ -251,5 +261,24 @@ process evaluate_genes_found {
   """
 }
 
-output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_covg.tsv")
+output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_covg.tsv").set { results }
 
+process make_plot {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: true
+
+  input:
+  file(tsv) from results
+
+  output:
+  file("*.png") into output_plot
+
+  """
+  python3 ${params.pipeline_root}/scripts/plot_gene_finding.py --tsv "${tsv}"
+  """
+}

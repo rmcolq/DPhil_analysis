@@ -147,7 +147,7 @@ def run_individual_minos(truth, vcf, vcf_ref, name, flank, mask):
         index_ref(truth)
         filter_vcf_by_ref_pos(vcf, vcf_ref, flank)
         filtered_vcf = vcf.replace(".vcf",".good.vcf")
-        command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp/individual." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
+        command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp/individual." + name, "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
         if mask:
             command += " --exclude_bed " + mask
         syscall(command)

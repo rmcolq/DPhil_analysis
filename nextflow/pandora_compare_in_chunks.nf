@@ -3,6 +3,8 @@ params.pangenome_prg = ""
 params.chunk_size = 750
 params.num_samples = 15
 params.max_covg = 100
+params.k = 15
+params.w = 14
 
 params.help = false
 params.testing = false
@@ -72,18 +74,20 @@ process pandora_index {
 
   input: 
   file prg from chunks_ch
+  val w from params.w
+  val k from params.k
 
   output:
-  set(file("${prg}"), file("${prg}.k15.w14.idx"), file("kmer_prgs")) into pandora_idx
+  set(file("${prg}"), file("${prg}.k${k}.w${w}.idx"), file("kmer_prgs")) into pandora_idx
 
   """
-  pandora index ${prg}
+  pandora index -w ${w} -k ${k} ${prg}
   """
 } 
 
 
 process pandora_compare_illumina {
-  memory { 0.1.GB * params.num_samples * task.attempt }
+  memory { 0.0002.GB * params.num_samples * params.chunk_size * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
   maxRetries 3
   container {
@@ -94,6 +98,8 @@ process pandora_compare_illumina {
   input:
   set(file(prg), file(idx), file(kmer_prgs)) from pandora_idx
   file read_tsv
+  val w from params.w
+  val k from params.k
   
   output:
   file("pandora/pandora_multisample_genotyped.vcf") into vcfs
@@ -101,7 +107,7 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
   
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg}
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1500000 --min_cluster_size 3
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi
@@ -112,7 +118,7 @@ process pandora_compare_illumina {
 } 
 
 /*process pandora_compare_nanopore {
-  memory { 0.1.GB * params.num_samples * task.attempt }
+  memory { 0.0001.GB * params.num_samples * params.chunk_size * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -123,6 +129,8 @@ process pandora_compare_illumina {
   input:
   set(file(prg), file(idx), file(kmer_prgs)) from pandora_idx
   file read_tsv
+  val w from params.w
+  val k from params.k
 
   output:
   file("pandora_multisample_genotyped.vcf") into vcfs
@@ -132,7 +140,7 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
 
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg}
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k}
   grep -v "#" pandora/pandora_multisample_genotyped.vcf > pandora_multisample_genotyped.vcf
   grep "#" pandora/pandora_multisample_genotyped.vcf > vcf_header.txt
   tail -n+2 pandora/pandora_multisample.matrix > pandora_multisample.matrix

@@ -118,7 +118,7 @@ def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps):
     if snps:
         restrict_to_snps(filtered_vcf)
         filtered_vcf = filtered_vcf.replace(".vcf",".snps.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
     if mask:
         command += " --exclude_bed " + mask
     syscall(command)

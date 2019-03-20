@@ -40,20 +40,18 @@ if (!final_outdir.exists()) {
 }
 
 
-ks = Channel.from(7,9,11,13,15,17,19,21,23,25,27,29,31)
+ks = Channel.from(7,11,15,19,23,27,31)
 ws = Channel.from(1..31)
-ks.combine(ws).filter { it[1] % 2 == 1 }.filter { it[1] < it[0] }.set { kws }
+ks.combine(ws).filter { it[1] % 4 == 2 }.filter { it[1] < it[0] }.set { kws }
 
 
-process index_prg {
+/*process index_prg {
     memory { 20.GB * task.attempt }
     errorStrategy {task.attempt < 5 ? 'retry' : 'ignore'}
     maxRetries 5
     container {
       'shub://rmcolq/pandora:pandora'
     }
-
-    publishDir pangenome_prg.parent, mode: 'copy', overwrite: false
 
     input:
     file pangenome_prg
@@ -63,12 +61,30 @@ process index_prg {
     set file("prg.fa"), file("prg.*.idx"), file("kmer_prgs"), val("${w}"), val("${k}") into indexes_nano
     set file("prg.fa"), file("prg.*.idx"), file("kmer_prgs"),val("${w}"), val("${k}") into indexes_ill
     set val("${w}"), val("${k}"), file("indextimeinfo.txt") into indexes_times
+    file("${pangenome_prg}") into local_prg
 
     """
-    head -n10000 ${pangenome_prg} > prg.fa
-    tail -n10000 ${pangenome_prg} >> prg.fa
-    echo "pandora index -w ${w} -k ${k} prg.fa &> pandora.log" > command.sh
+    echo "pandora index -w ${w} -k ${k} ${pangenome_prg} &> pandora.log" > command.sh
     /usr/bin/time -v bash command.sh &> indextimeinfo.txt
+    """
+}*/
+
+process find_prg_index {
+memory { 20.GB * task.attempt }
+    errorStrategy {task.attempt < 5 ? 'retry' : 'ignore'}
+    maxRetries 5
+    container {
+      'shub://rmcolq/pandora:pandora'
+    } 
+    
+    input:
+    file index_dir
+    set val(k), val(w) from kws
+    
+    output:
+    set file("${index_dir}/k${k}.w${w}/*prg.fa"), file("${index_dir}/k${k}.w${w}/*prg.*.idx"), file("${index_dir}/k${k}.w${w}/kmer_prgs"), val("${w}"), val("${k}") into indexes_nano
+    set file("${index_dir}/k${k}.w${w}/*prg.fa"), file("${index_dir}/k${k}.w${w}/*prg.*.idx"), file("${index_dir}/k${k}.w${w}/kmer_prgs"), val("${w}"), val("${k}") into indexes_ill
+    """
     """
 }
 
@@ -174,9 +190,9 @@ process simulate_illumina_reads {
 }
 
 process pandora_map_path_nano {
-  memory { 24.GB * task.attempt }
-  errorStrategy {task.attempt < 4 ? 'retry' : 'ignore'}
-  maxRetries 4
+  memory { 50.GB * task.attempt }
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -261,7 +277,7 @@ process evaluate_genes_found {
 
 output_tsv.collectFile(name: 'gene_finding_by_covg.tsv')
 
-process make_df_index_times {
+/*process make_df_index_times {
   memory { 0.1.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
@@ -294,6 +310,7 @@ process make_df_index_times {
 }
 
 df_line_indexes.collectFile(name: final_outdir/'index_parameters.tsv')
+*/
 
 process make_df_map_times {
   memory { 0.1.GB * task.attempt }

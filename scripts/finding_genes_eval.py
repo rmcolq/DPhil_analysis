@@ -5,7 +5,7 @@ def evaluate_gene_finding(prefix, covg, truth, fastq):
     truth_list = []
     with open(truth, 'r') as f:
         ids = f.readline().strip().split(",")
-        truth_list = ids
+        truth_list = [i.replace("_0","") for i in ids]
 
     record_dict = SeqIO.to_dict(SeqIO.parse(fastq, "fastq"))
 
@@ -13,8 +13,8 @@ def evaluate_gene_finding(prefix, covg, truth, fastq):
     fn = [n for n in truth_list if n not in record_dict.keys()]
     fp = [n for n in record_dict.keys() if n not in truth_list]
 
-    p = float(len(tp))/(len(tp)+len(fp))
-    r = float(len(tp))/(len(tp)+len(fn))
+    p = float(len(tp))/float(len(tp)+len(fp))
+    r = float(len(tp))/float(len(tp)+len(fn))
 
     with open("results.tsv", 'w') as f:
         f.write("%s\t%s\t%d\t%d\t%d\t%f\t%f\n" %(prefix, covg, len(tp), len(fn), len(fp), p, r))

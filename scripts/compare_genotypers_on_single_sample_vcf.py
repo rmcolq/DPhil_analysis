@@ -41,7 +41,7 @@ def run_evaluate_recall(truth_vcf, truth_vcf_ref, query_vcf, query_vcf_ref, name
         restrict_to_snps(query_vcf, max_var_length)
         filtered_query_vcf = query_vcf.replace(".vcf",".filtered.vcf")
     minos_binary = find_binary('minos')
-    command = ' '.join([minos_binary, 'check_recall', filtered_truth_vcf, truth_vcf_ref, filtered_query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--allow_flank_mismatches"])
+    command = ' '.join([minos_binary, 'check_recall', filtered_truth_vcf, truth_vcf_ref, filtered_query_vcf, query_vcf_ref, "tmp.recall." + name, "--flank_length", str(flank), "--variant_merge_length",  str(flank), "--allow_flank_mismatches", "--no_filter_cluster"])
     if mask:
         command += " --exclude_bed " + mask
     if not exclude_ref_alleles:
@@ -108,7 +108,7 @@ def run_evaluate_precision(truth, vcf, vcf_ref, name, flank, mask, snps, exclude
     if snps:
         restrict_to_snps(filtered_vcf)
         filtered_vcf = filtered_vcf.replace(".vcf",".filtered.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--max_soft_clipped", str(20)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf, vcf_ref, truth, "tmp.precision." + name, "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--max_soft_clipped", str(20)])
     if mask:
         command += " --exclude_bed " + mask
     if not exclude_ref_alleles:

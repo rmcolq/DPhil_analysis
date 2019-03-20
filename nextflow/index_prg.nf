@@ -3,11 +3,12 @@ params.pangenome_prg = ""
 params.help = false
 params.pipeline_root = "/nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis"
 params.final_outdir = "."
-params.max_forks = 10
+params.max_forks = 50
 params.chunk_size = 4000
 params.num_prg = 0
 params.w = 14
 params.k = 15
+params.g_offset = 0
 
 if (params.help){
     log.info"""
@@ -52,6 +53,7 @@ process pandora_index {
       'shub://rmcolq/pandora:pandora'
     }
     maxForks params.max_forks
+    time '7d'
 
     input:
     file pangenome_prg
@@ -59,6 +61,7 @@ process pandora_index {
     val k from params.k
     val offset from nums
     val num_prg from params.chunk_size
+    val g_offset from params.g_offset
 
     output:
     file("prg.fa.*.idx") into indexes
@@ -70,7 +73,8 @@ process pandora_index {
     a=\$(( 2 * ${offset} + 1 ))
     b=\$(( 2 * ${num_prg} ))
     tail -n+\$a ${pangenome_prg} | head -n \$b > prg.fa
-    pandora index prg.fa --offset ${offset} -w ${w} -k ${k}
+    o=\$(( ${offset} + ${g_offset} ))
+    pandora index prg.fa --offset \$o -w ${w} -k ${k}
     """
 }
 
@@ -105,7 +109,7 @@ process publish_kd1 {
     container {
       'shub://rmcolq/pandora:pandora'
     } 
-    maxForks params.max_forks
+    maxForks 1
 
     publishDir pangenome_prg.parent, mode: 'copy', overwrite: false
     
@@ -128,7 +132,7 @@ process publish_kd2 {
     container {
       'shub://rmcolq/pandora:pandora'
     } 
-    maxForks params.max_forks
+    maxForks 1
     
     publishDir pangenome_prg.parent+"/kmer_prgs", mode: 'copy', overwrite: false
     

@@ -174,7 +174,7 @@ process simulate_illumina_reads {
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
   maxRetries 1
   maxForks 8 
-  time '20m' 
+  time '3h' 
   container {
       'shub://rmcolq/Singularity_recipes:nanosimh'
   }   
@@ -186,7 +186,7 @@ process simulate_illumina_reads {
   file("simulated.fa") into illumina_reads
   
   """
-  nanosim-h --perfect --circular -n 1000000 ${truth_assembly} --unalign-rate 0 --max-len 151 --min_len 150
+  nanosim-h --perfect --circular -n 1000000 ${truth_assembly} --unalign-rate 0 --max-len 151 --min-len 150
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
@@ -213,14 +213,14 @@ process pandora_genotype_nanopore {
     file kmer_prgs from pandora_kmer_prgs
 
     output:
-    set(file("pandora_genotyped_nanopore.vcf"), file("pandora_genotyped_nanopore.ref.fa")) into pandora_nanopore_vcf
+    set(file("pandora_genotyped_nanopore_${params.covg}.vcf"), file("pandora_genotyped_nanopore_${params.covg}.ref.fa")) into pandora_nanopore_vcf
     set val("Pandora\tNanopore\t${params.covg}"), file("timeinfo.txt") into pandora_nanopore_time
 
     """
     echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg ${params.covg} &> pandora.log" > command.sh
     /usr/bin/time -v bash command.sh &> timeinfo.txt
-    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_nanopore.ref.fa
-    cp pandora/pandora_genotyped.vcf pandora_genotyped_nanopore.vcf
+    seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_nanopore_${params.covg}.ref.fa
+    cp pandora/pandora_genotyped.vcf pandora_genotyped_nanopore_${params.covg}.vcf
     """
 }
 process pandora_genotype_illumina {
@@ -240,14 +240,14 @@ process pandora_genotype_illumina {
         file kmer_prgs from pandora_kmer_prgs
 
         output:
-        set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
+        set(file("pandora_genotyped_illumina_${params.covg}.vcf"), file("pandora_genotyped_illumina_${params.covg}.ref.fa")) into pandora_illumina_vcf
         set val("Pandora\tIllumina\t${params.covg}"), file("timeinfo.txt") into pandora_illumina_time
 
         """
         echo "pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --max_covg ${params.covg} &> pandora.log" > command.sh
         /usr/bin/time -v bash command.sh &> timeinfo.txt
-        seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
-        cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
+        seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina_${params.covg}.ref.fa
+        cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina_${params.covg}.vcf
         """
 }
 
@@ -269,7 +269,7 @@ process compare_vcfs {
         set(file(vcf), file(vcf_ref)) from all_vcfs
 
         output:
-        file('*.csv') into df
+        file("*.csv") into df
 
         """
         python3 ${params.pipeline_root}/scripts/compare_genotypers_on_single_sample_vcf.py --truth_vcf ${truth_vcf} --truth_vcf_ref ${truth_vcf_ref} --sample_vcf ${vcf} --sample_vcf_ref ${vcf_ref} --recall_flank 14 --max_var_length 11

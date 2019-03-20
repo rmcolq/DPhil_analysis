@@ -122,14 +122,14 @@ def run_individual_minos(truth1, truth2, vcf1, vcf2, vcf_ref, name, flank, mask1
     index_ref(truth1)
     filter_vcf_by_ref_pos(vcf1, vcf_ref, flank)
     filtered_vcf1 = vcf1.replace(".vcf",".good.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf1, vcf_ref, truth1, "tmp.individual." + name + ".1", "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf1, vcf_ref, truth1, "tmp.individual." + name + ".1", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
     if mask1:
         command += " --exclude_bed " + mask1
     syscall(command)
     index_ref(truth2)
     filter_vcf_by_ref_pos(vcf2, vcf_ref, flank)
     filtered_vcf2 = vcf2.replace(".vcf",".good.vcf")
-    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf2, vcf_ref, truth2, "tmp.individual." + name + ".2", "--allow_flank_mismatches", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
+    command = ' '.join([minos_binary, 'check_with_ref', filtered_vcf2, vcf_ref, truth2, "tmp.individual." + name + ".2", "--flank_length",  str(flank), "--variant_merge_length",  str(flank), "--include_ref_calls", "--max_soft_clipped", str(20)])
     if mask2:
         command += " --exclude_bed " + mask2
     syscall(command)
