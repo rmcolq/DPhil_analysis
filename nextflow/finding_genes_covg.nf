@@ -82,7 +82,7 @@ process simulate_genome {
 }
  
 nano_types = Channel.from("ecoli_R9_2D", "ecoli_R9_2D", "ecoli_R9_1D")
-nano_lengths = Channel.from(10000, 50000, 10000)
+nano_lengths = Channel.from(10000, 50000)
 nano_types.combine(nano_lengths).set { nano_profile }
 
 process simulate_nanopore_reads {
@@ -130,18 +130,18 @@ process simulate_illumina_reads {
   set val(type), val(length) from ill_profile
 
   output:
-  file("simulated_illumina_${type}.f*") into sim_reads_illumina
+  file("simulated_illumina_${type}_${length}.f*") into sim_reads_illumina
 
   """
-  art_illumina -ss ${type} -i ${ref_fasta} -l ${length} -f 300 -o simulated_illumina_${type}
-  if [[ -s simulated_illumina_${type}.fq ]] ; then
+  art_illumina -ss ${type} -i ${ref_fasta} -l ${length} -f 300 -o simulated_illumina_${type}_${length}
+  if [[ -s simulated_illumina_${type}_${length}.fq ]] ; then
   echo "simulated.fq has data."
   else
   rm simulated*.fq
-  if [[ -s simulated_illumina_${type}.aln ]] ; then
-  grep -v "#" simulated_illumina_${type}.aln | grep -v "@" > simulated_illumina_${type}.fa
+  if [[ -s simulated_illumina_${type}_${length}.aln ]] ; then
+  grep -v "#" simulated_illumina_${type}_${length}.aln | grep -v "@" > simulated_illumina_${type}_${length}.fa
   fi
-  if [[ -s simulated_illumina_${type}.fa ]] ; then
+  if [[ -s simulated_illumina_${type}_${length}.fa ]] ; then
   exit 1
   fi
   fi

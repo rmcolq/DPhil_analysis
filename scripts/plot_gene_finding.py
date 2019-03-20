@@ -21,8 +21,10 @@ def plot_df_covg(tsv_file):
     ax.set_axisbelow(b=True)
     plt.style.use('seaborn-colorblind')
 
-    hue_order=['nanopore_10000', 'nanopore_50000', 'illumina_MSv3', 'illumina_HS25']
-    markers=['o','s','v','^']
+    hue_order=list(set(list(df['type'].values)))
+    hue_order.sort()
+    #hue_order=['illumina_MSv3_150', 'illumina_MSv3_250','illumina_HS25_150', 'nanopore_R9_2D_10000', 'nanopore_R9_2D_50000']
+    markers=['v','^','>','o','s','+','x', '<']
     gs = []
     for i in range(len(hue_order)):
         indx = df['type'] == hue_order[i]
@@ -30,7 +32,7 @@ def plot_df_covg(tsv_file):
         g = plt.scatter(dfs['precision'], dfs['recall'], s=dfs['coverage'], marker=markers[i], alpha=0.8)
         gs.append(g)
     ax.set(xlabel="Precision", ylabel="Recall")
-    plt.legend(gs, hue_order, loc='lower left', bbox_to_anchor=(1, 0.78))
+    plt.legend(gs, hue_order, loc='lower left', bbox_to_anchor=(1, -0.0))
     
     plt.savefig('gene_finding_covg.png', transparent=True)
 

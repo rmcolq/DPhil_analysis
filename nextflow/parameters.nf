@@ -131,6 +131,7 @@ process simulate_genome {
   """
 }
  
+types = Channel.from("ecoli_R9_2D", "ecoli_R9_1D")
 process simulate_nanopore_reads {
   memory { 10.GB * task.attempt }
   errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -142,19 +143,20 @@ process simulate_nanopore_reads {
 
   input:
   file ref_fasta from nano_genome
+  val(type) from types
 
   output:
   file("simulated*.fa") into sim_reads_nano
 
   """
-  nanosim-h -p ecoli_R9_2D -n 50000 ${ref_fasta} --unalign-rate 0 --max-len 10000
+  nanosim-h -p ${type} -n 50000 ${ref_fasta} --unalign-rate 0 --max-len 10000 --circular
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
   rm simulated.fa
   exit 1
   fi 
-  mv simulated.fa simulated_nanopore.fa
+  mv simulated.fa simulated_nanopore_${type}.fa
   """
 }
 
@@ -174,15 +176,15 @@ process simulate_illumina_reads {
   file("simulated*.f*") into sim_reads_illumina
 
   """
-  art_illumina -ss HS25 -i ${ref_fasta} -l 150 -f 100 -o simulated_illumina
-  if [[ -s simulated*.fq ]] ; then
+  art_illumina -ss HS25 -i ${ref_fasta} -l 150 -f 100 -o simulated_illumina_HS25
+  if [[ -s simulated_illumina_HS25.fq ]] ; then
   echo "simulated.fq has data."
   else
   rm simulated*.fq
-  if [[ -s simulated*.aln ]] ; then
-  grep -v "#" simulated*.aln | grep -v "@" > simulated_illumina.fa
+  if [[ -s simulated_illumina_HS25.aln ]] ; then
+  grep -v "#" simulated_illumina_HS25.aln | grep -v "@" > simulated_illumina_HS25.fa
   fi
-  if [[ -s simulated*.fa ]] ; then
+  if [[ -s simulated_illumina_HS25.fa ]] ; then
   exit 1
   fi
   fi
