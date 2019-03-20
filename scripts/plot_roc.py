@@ -48,34 +48,29 @@ def plot_graphs(items, x_max, y_label):
                     x['name'] = "pandora_genotyped_nanopore_full"
                 elif x['name'].values[0].startswith("pandora_genotyped_30"):
                     x['name'] = "pandora_genotyped_nanopore_30"
-                print("add df", x['name'].values[0], "to graph")
                 if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall"):
                     col = colormap_pandora(0)
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(50)
-                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                 elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 0:
                     col = colormap_pandora(100)
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(150)
-                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                 elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 1:
                     col = colormap_pandora(200)
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(250)
-                    ax.scatter(x['xscat'], x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                 elif x['name'].values[0].startswith("snippy") and i > 2:
                     col = colormap_snippy(snippy_i*20)
-                    ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                     snippy_i += 1
                 elif x['name'].values[0].startswith("nanopolish") and i > 3:
                     col = colormap_nanopolish(nanopolish_i*20)
-                    ax.scatter(x['xscat'],x['yscat'], label=x['name'].values[0], c=col, alpha=0.5)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                     nanopolish_i += 1
-                else:
-                    print("failed to add to scatter")
-            else:
-                print(x['name'].values)
 
         handles, labels = ax.get_legend_handles_labels()
         if len(handles) > 0 and len(labels) > 0 :
