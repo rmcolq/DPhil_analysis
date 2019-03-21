@@ -177,9 +177,9 @@ process simulate_illumina_reads {
 }
 
 Channel.from(5,7,9,11,13,15).set { min_cluster_size }
-Channel.from(10,20,40,80,160,320).set { max_cluster_distance }
+Channel.from(10,20,40,80).set { max_cluster_distance }
 min_cluster_size.combine(max_cluster_distance).set { thresh }
-thresh.into{ thresh_nano; thresh_ill }
+(thresh_nano, thresh_ill) = thresh.separate(2) { a -> [a, a] }
 
 process pandora_map_nano {
   memory { 40.GB * task.attempt }
@@ -198,7 +198,7 @@ process pandora_map_nano {
   set val("${type}"), file("pandora/pandora.consensus.fq"), val("${min_cluster_size}"), val("${max_cluster_distance}") into pandora_output_nano
 
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${params.covg} -w ${w} -k {k} --max_diff ${max_cluster_distance} --min_cluster_size ${min_cluster_size} &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --genotype --max_covg ${params.covg} -w ${w} -k ${k} --max_diff ${max_cluster_distance} --min_cluster_size ${min_cluster_size} &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
 
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
@@ -229,7 +229,7 @@ process pandora_map_path_illumina {
   set val("${type}"), file("pandora/pandora.consensus.fq"), val("${min_cluster_size}"), val("${max_cluster_distance}") into pandora_output_ill
   
   """
-  echo "pandora map -p ${prg} -r ${reads} --genotype --illumina --max_covg ${params.covg} -w ${w} -k {k} --max_diff ${max_cluster_distance} --min_cluster_size ${min_cluster_size} &> pandora.log" > command.sh
+  echo "pandora map -p ${prg} -r ${reads} --genotype --illumina --max_covg ${params.covg} -w ${w} -k ${k} --max_diff ${max_cluster_distance} --min_cluster_size ${min_cluster_size} &> pandora.log" > command.sh
   /usr/bin/time -v bash command.sh &> timeinfo.txt
 
   if [[ -f pandora/pandora.consensus.fq.gz ]] ; then
@@ -265,4 +265,24 @@ process evaluate_genes_found {
   """
 }
 
-output_tsv.collectFile(name: 'gene_finding_by_cluster_params.tsv')
+output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_cluster_params.tsv").set { results }
+
+process make_plot {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }
+  publishDir final_outdir, mode: 'copy', overwrite: true
+
+  input:
+  file(tsv) from results
+
+  output:
+  file("*.png") into output_plot
+
+  """
+  python3 ${params.pipeline_root}/scripts/plot_gene_finding.py --tsv "${tsv}" --p1 'min_cluster_size' --p2 'max_cluster_distance' --l1 "Minimum cluster size" --l2 "Maximum within cluster distance" --d1 11 --d2 80
+  """
+}

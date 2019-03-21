@@ -288,7 +288,27 @@ process evaluate_genes_found {
   """
 }
 
-output_tsv.collectFile(name: 'gene_finding_by_wk_params.tsv')
+output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_wk_params.tsv").set { results }
+
+process make_plot {
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }   
+  publishDir final_outdir, mode: 'copy', overwrite: true
+  
+  input:
+  file(tsv) from results
+  
+  output:
+  file("*.png") into output_plot
+  
+  """
+  python3 ${params.pipeline_root}/scripts/plot_gene_finding.py --tsv "${tsv}" --p1 'w' --p2 'k' --l1 "w" --l2 "k" --d1 14 --d2 15
+  """
+} 
 
 /*process make_df_index_times {
   memory { 0.1.GB * task.attempt }
@@ -358,3 +378,4 @@ process make_df_map_times {
 } 
 
 df_line_map.collectFile(name: final_outdir/'map_parameters.tsv')
+

@@ -11,7 +11,6 @@ import numpy as np
 def plot_df_covg(tsv_file):
     df = pd.read_csv(tsv_file, sep='\t', header=None, names=['type', 'covg', 'tp', 'fn', 'fp', 'precision', 'recall'])
     print(df.head)
-    df['coverage'] = [int(i) for i in df['covg']]
     fixed_names = [s.replace("_ecoli","") for s in df['type']]
     df['type'] = fixed_names
     plt.rcParams['figure.figsize'] = 10,6
@@ -29,12 +28,14 @@ def plot_df_covg(tsv_file):
     for i in range(len(hue_order)):
         indx = df['type'] == hue_order[i]
         dfs = df[indx]
-        g = plt.scatter(dfs['precision'], dfs['recall'], s=dfs['coverage'], marker=markers[i], alpha=0.8)
+        g = plt.scatter(dfs['precision'], dfs['recall'], c=dfs['covg'], marker=markers[i], alpha=0.8)
         gs.append(g)
     ax.set(xlabel="Precision", ylabel="Recall")
     plt.legend(gs, hue_order, loc='lower left', bbox_to_anchor=(1, -0.0))
     
     plt.savefig('gene_finding_covg.png', transparent=True)
+
+import matplotlib.pyplot as plt
 
 def plot_df_param1(tsv_file, param1, param2, xlabel, default2):
     fig, host = plt.subplots()
@@ -93,6 +94,7 @@ def plot_df_param1(tsv_file, param1, param2, xlabel, default2):
 
     host.tick_params(axis='y', colors=host_col)
     par1.tick_params(axis='y', colors=par1_col)
+    plt.savefig('gene_finding_%s.png' %param1, transparent=True)
     
 def plot_df_param2(tsv_file, param1, param2, xlabel, default1):
     fig, host = plt.subplots()
@@ -151,24 +153,23 @@ def plot_df_param2(tsv_file, param1, param2, xlabel, default1):
 
     host.tick_params(axis='y', colors=host_col)
     par1.tick_params(axis='y', colors=par1_col)
-
+    plt.savefig('gene_finding_%s.png' %param2, transparent=True)
 
 parser = argparse.ArgumentParser(description='Plots a scatter for precision and recall of different technologies')
 parser.add_argument('--tsv', type=str,
                     help='Input TSV')
-parser.add_argument('--p1', type=str, default=""
-                    help='Parameter1')
-parser.add_argument('--p2', type=str, default=""
-                    help='Parameter2')
-parser.add_argument('--l1', type=str, default=""
-                    help='Parameter1 label')
-parser.add_argument('--l2', type=str, default=""
-                    help='Parameter2 label')
-parser.add_argument('--d1', type=int, default=0
-                    help='Parameter1 default')
-parser.add_argument('--d2', type=int, default=0
-                    help='Parameter2 default')
-
+parser.add_argument('--p1' type=str, default="",
+                    help='Parameter 1')
+parser.add_argument('--p2' type=str, default="",
+                    help='Parameter 2')
+parser.add_argument('--d1' type=int, default=0,
+                    help='Parameter 1 default')
+parser.add_argument('--d2' type=int, default=0,
+                    help='Parameter 2 default')
+parser.add_argument('--l1' type=str, default="",
+                    help='Parameter 1 name')
+parser.add_argument('--l2' type=str, default="",
+                    help='Parameter 2 name')
 args = parser.parse_args()
 
 SMALL_SIZE = 16
@@ -183,8 +184,8 @@ plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
 plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
-if args.p1=="" and args.p2=="":
+if args.d1=="" and args.d2=="":
     plot_df_covg(args.tsv)
 else:
-    plot_df_param1(args.tsv, args.p1, args.p2, args.l1, args.d2)
-    plot_df_param2(args.tsv, args.p1, args.p2, args.l2, args.d1)
+    plot_df_param1(args.tsv, args.d1, args.d2, args.l1, args.d2)
+    plot_df_param2(args.tsv, args.d1, args.d2, args.l2, args.d1)
