@@ -176,11 +176,14 @@ process simulate_illumina_reads {
   """
 }
 
-Channel.from(5,7,9,11,13,15).set { min_cluster_size }
-Channel.from(10,20,40,80).set { max_cluster_distance }
-min_cluster_size.combine(max_cluster_distance).set { thresh }
-(thresh_nano, thresh_ill) = thresh.separate(2) { a -> [a, a] }
+Channel.from(5,7,9,11,13,15).set { min_cluster_size_n }
+Channel.from(10,20,40,80,160,320).set { max_cluster_distance_n }
+min_cluster_size_n.combine(max_cluster_distance_n).set { thresh_nano }
+Channel.from(5,7,9,11,13,15).set { min_cluster_size_i }
+Channel.from(10,20,40,80,160,320).set { max_cluster_distance_i }
+min_cluster_size_i.combine(max_cluster_distance_i).set { thresh_ill }
 
+thresh_nano.combine(nanopore_reads).set { nano_map_input }
 process pandora_map_nano {
   memory { 40.GB * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
@@ -190,8 +193,7 @@ process pandora_map_nano {
   }
 
   input:
-  set val(min_cluster_size), val(max_cluster_distance) from thresh_nano
-  set file(reads), val(type) from nanopore_reads
+  set val(min_cluster_size), val(max_cluster_distance), file(reads), val(type) from nano_map_input
   set file(prg), file(index), file(kmer_prgs), val(w), val(k) from indexes_nano
 
   output:
@@ -262,6 +264,12 @@ process evaluate_genes_found {
 
   """
   python3 ${params.pipeline_root}/scripts/finding_genes_eval.py --fastq ${pandora_run} --truth ${truth_list} --prefix "${type}\t${min_cluster_size}\t${max_cluster_distance}" --covg ${params.covg}
+
+  if [[ -f results.tsv ]] ; then
+  echo "results.tsv exists"
+  else
+  exit 1
+  fi
   """
 }
 
@@ -283,6 +291,6 @@ process make_plot {
   file("*.png") into output_plot
 
   """
-  python3 ${params.pipeline_root}/scripts/plot_gene_finding.py --tsv "${tsv}" --p1 'min_cluster_size' --p2 'max_cluster_distance' --l1 "Minimum cluster size" --l2 "Maximum within cluster distance" --d1 11 --d2 80
+  python3 ${params.pipeline_root}/scripts/plot_cluster_params.py --tsv "${tsv}"
   """
 }

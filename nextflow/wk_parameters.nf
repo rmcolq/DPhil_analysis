@@ -51,7 +51,7 @@ if (!final_outdir.exists()) {
 }
 
 
-ks = Channel.from(7,11,15,19,23,27,31)
+ks = Channel.from(11,15,19,23,27,31)
 ws = Channel.from(1..31)
 ks.combine(ws).filter { it[1] % 4 == 2 }.filter { it[1] < it[0] }.set { kws }
 
@@ -157,7 +157,7 @@ process simulate_nanopore_reads {
   val(type) from types
 
   output:
-  file("simulated*.fa") into sim_reads_nano
+  set file("simulated*.fa"), val("${type}") into sim_reads_nano
 
   """
   nanosim-h -p ${type} -n 50000 ${ref_fasta} --unalign-rate 0 --max-len 10000 --circular
@@ -202,6 +202,7 @@ process simulate_illumina_reads {
   """
 }
 
+indexes_nano.combine(sim_reads_nano).set { nano_params }
 process pandora_map_path_nano {
   memory { 50.GB * task.attempt }
   errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
@@ -212,12 +213,11 @@ process pandora_map_path_nano {
   }
   
   input:
-  file(reads) from sim_reads_nano
-  set file(prg), file(index), file(kmer_prgs), val(w), val(k) from indexes_nano
+  set file(prg), file(index), file(kmer_prgs), val(w), val(k), file(reads), val(type) from nano_params
   
   output:
-  set val("Nanopore"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_nano
-  set val("Nanopore"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_nano
+  set val("nanopore_${type}"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_nano
+  set val("nanopore_${type}"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_nano
   
   """
   echo "pandora map -p ${prg} -r ${reads} --max_covg ${params.covg} -w ${w} -k ${k} &> pandora.log" > command.sh
@@ -234,9 +234,9 @@ process pandora_map_path_nano {
 } 
 
 process pandora_map_path_illumina {
-  memory { 24.GB * task.attempt }
-  errorStrategy {task.attempt < 4 ? 'retry' : 'ignore'}
-  maxRetries 4
+  memory { 50.GB * task.attempt }
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   maxForks params.max_forks
   container {
       'shub://rmcolq/pandora:pandora'
@@ -247,8 +247,8 @@ process pandora_map_path_illumina {
   set file(prg), file(index), file(kmer_prgs), val(w), val(k) from indexes_ill
   
   output:
-  set val("Illumina"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_illumina
-  set val("Illumina"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_illumina
+  set val("illumina_HS25"), file("pandora/pandora.consensus.fq"), val("${w}"), val("${k}") into pandora_output_path_illumina
+  set val("illumina_HS25"), val("${w}"), val("${k}"), file("maptimeinfo.txt") into pandora_output_time_illumina
   
   """
   echo "pandora map -p ${prg} -r ${reads} --illumina --max_covg ${params.covg} -w ${w} -k ${k} &> pandora.log" > command.sh
@@ -289,26 +289,6 @@ process evaluate_genes_found {
 }
 
 output_tsv.collectFile(name: "${final_outdir}/gene_finding_by_wk_params.tsv").set { results }
-
-process make_plot {
-  memory { 0.1.GB * task.attempt }
-  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
-  maxRetries 1
-  container {
-      'shub://rmcolq/Singularity_recipes:minos'
-  }   
-  publishDir final_outdir, mode: 'copy', overwrite: true
-  
-  input:
-  file(tsv) from results
-  
-  output:
-  file("*.png") into output_plot
-  
-  """
-  python3 ${params.pipeline_root}/scripts/plot_gene_finding.py --tsv "${tsv}" --p1 'w' --p2 'k' --l1 "w" --l2 "k" --d1 14 --d2 15
-  """
-} 
 
 /*process make_df_index_times {
   memory { 0.1.GB * task.attempt }
@@ -377,5 +357,25 @@ process make_df_map_times {
   """
 } 
 
-df_line_map.collectFile(name: final_outdir/'map_parameters.tsv')
+df_line_map.collectFile(name: final_outdir/'map_parameters.tsv').set {times_results}
 
+process make_plot { 
+  memory { 0.1.GB * task.attempt }
+  errorStrategy {task.attempt < 1 ? 'retry' : 'fail'}
+  maxRetries 1
+  container {
+      'shub://rmcolq/Singularity_recipes:minos'
+  }   
+  publishDir final_outdir, mode: 'copy', overwrite: true
+  
+  input:
+  file(tsv) from results
+  file(tsv_times) from times_results
+  
+  output:
+  file("*.png") into output_plot
+  
+  """
+  python3 ${params.pipeline_root}/scripts/plot_wk_params.py --tsv "${tsv}" --tsv_times "${tsv_times}"
+  """
+}
