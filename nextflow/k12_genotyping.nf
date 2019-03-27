@@ -411,7 +411,7 @@ process nanopolish_genotype_nanopore {
       --ploidy 1
     &> nanopolish.log" > command.sh
         
-    time -v bash command.sh &> timeinfo.txt
+    /usr/bin/time -v bash command.sh &> timeinfo.txt
     cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_full.vcf
     for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
     do
@@ -459,7 +459,7 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
         """
         echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2} &> snippy.log" > command.sh
         
-        time -v bash command.sh &> timeinfo.txt
+        /usr/bin/time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa
@@ -503,7 +503,7 @@ else if (params.illumina_reads_1) {
         mkdir snippy_tmp
         echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp &> snippy.log" > command.sh
         
-        time -v bash command.sh &> timeinfo.txt
+        /usr/bin/time -v bash command.sh &> timeinfo.txt
 
         cp snippy_outdir/snps.filt.vcf snippy_full.vcf
         cp ${reference_assembly} snippy_full.ref.fa

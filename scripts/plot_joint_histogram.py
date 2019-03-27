@@ -21,6 +21,8 @@ def plot_count_hist(files, prefix=""):
     plt.rcParams['figure.figsize'] = 10,6
     fig, ax = plt.subplots()
     plt.style.use('seaborn-deep')
+    ax.grid(b=True)
+    ax.set_axisbelow(b=True)
     types = list(count_dict.keys())
     print(count_dict.keys())
     print(types)

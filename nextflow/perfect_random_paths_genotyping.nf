@@ -159,7 +159,7 @@ process simulate_nanopore_reads {
   file("simulated.fa") into nanopore_reads
 
   """
-  nanosim-h --perfect --circular -n 15000 ${truth_assembly} --unalign-rate 0 --max-len 10000
+  nanosim-h --perfect --circular -n 30000 ${truth_assembly} --unalign-rate 0 --max-len 10000
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else
@@ -186,7 +186,7 @@ process simulate_illumina_reads {
   file("simulated.fa") into illumina_reads
   
   """
-  nanosim-h --perfect --circular -n 1000000 ${truth_assembly} --unalign-rate 0 --max-len 151 --min-len 150
+  nanosim-h --perfect --circular -n 550000 ${truth_assembly} --unalign-rate 0 --max-len 300 --min-len 250
   if [[ -s simulated.fa ]] ; then
   echo "simulated.fa has data."
   else

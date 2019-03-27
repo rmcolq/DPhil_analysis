@@ -33,6 +33,7 @@ def plot_graphs(items, x_max, y_label):
         ax.set_ylabel(y_label)
         if x_max > 0:
             plt.xlim(-0.0005, x_max)
+            plt.ylim(0.0, 1.0)
 
         # Set colormaps
         colormap_pandora = plt.cm.autumn
@@ -53,21 +54,21 @@ def plot_graphs(items, x_max, y_label):
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(50)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
-                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 0:
+                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 3:
                     col = colormap_pandora(100)
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(150)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
-                elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 1:
+                elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 0:
                     col = colormap_pandora(200)
                     if "ref" in x['name'].values[0]:
                         col = colormap_pandora(250)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
-                elif x['name'].values[0].startswith("snippy") and i > 2:
+                elif x['name'].values[0].startswith("snippy") and i > 1:
                     col = colormap_snippy(snippy_i*20)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                     snippy_i += 1
-                elif x['name'].values[0].startswith("nanopolish") and i > 3:
+                elif x['name'].values[0].startswith("nanopolish") and i > 2:
                     col = colormap_nanopolish(nanopolish_i*20)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                     nanopolish_i += 1
