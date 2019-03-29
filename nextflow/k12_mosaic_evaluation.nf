@@ -117,7 +117,7 @@ process pandora_map_nano {
   set file("pandora/pandora.consensus.fq.gz"), val("Nanopore") into pandora_output_nano
   
   """
-  pandora map -p ${prg} -r ${reads}
+  pandora map -p ${prg} -r ${reads} --min_cluster_size 5 --max_covg 100
   """
 } 
 
@@ -139,7 +139,7 @@ process pandora_map_illumina {
   set file("pandora/pandora.consensus.fq.gz"), val("Illumina") into pandora_output_illumina
 
   """
-  pandora map -p ${prg} -r ${reads} --illumina
+  pandora map -p ${prg} -r ${reads} --illumina --max_diff 16 --max_covg 100
   """
 }
 
