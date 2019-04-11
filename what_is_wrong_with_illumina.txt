@@ -1,0 +1,104 @@
+# Want to know why the results with illumina and the 4 samples are so bad
+# Results in this directory /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace/2_way_roc/080419/
+# show that with 100x Illumina get recall stats:
+
+total   found_vars      missed_vars     excluded_vars
+55828   35052   19986   790
+
+# and precision stats:
+
+total   gt_correct      gt_wrong        gt_excluded     HET     tp_edit_dist    fp_edit_dist    UNKNOWN_NO_GT   variant_regions_total   called_variant_regions  false_negatives
+111468  107819  983     2666    0       8645    645     0       NA      NA      NA
+130039  108149  20789   1101    0       17555   9305    0       NA      NA      NA
+ 
+# Q1: Is this worse than with the pair of cardio samples (in which case could be to do with the closeness of the reference)
+
+######## Q2: Are the precion results coming from genes which are FPs?
+bwa index RHB11-C04_subsampled_pacbio.fasta 
+cp /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/030419/illumina_100/RHB11-C04/pandora.consensus.fq.gz illumina_100.RHB11-C04.pandora.consensus.fq.gz
+gunzip illumina_100.RHB11-C04.pandora.consensus.fq.gz 
+bwa mem RHB11-C04_subsampled_pacbio.fasta illumina_100.RHB11-C04.pandora.consensus.fq > gene_matches.sam
+
+less gene_matches.sam | grep -P "\t4\t*" | wc -l
+1633
+less gene_matches.sam | grep -Pv "\t16\t1\t" | grep -Pv "\t0\t1\t"| wc -l
+487
+less gene_matches.sam | grep -Pv "\t16\t1\t" | grep -Pv "\t0\t1\t"| grep -P "\t4\t*" | wc -l
+434
+
+less gene_matches.sam | grep -P "\t0\t1\t" | wc -l
+2210
+less gene_matches.sam | grep -P "\t16\t1\t" | wc -l
+3020
+
+# Total genes:
+grep "log P" illumina_100.RHB11-C04.pandora.consensus.fq | wc -l
+5620
+
+# There are a lot of FP matches! Get list of genes
+less gene_matches.sam | grep -Pv "\t16\t1\t" | grep -Pv "\t0\t1\t"| grep -P "\t4\t*" | cut -f1 > fp_genes.txt
+grep -v -f fp_genes.txt tmp/individual.pandora_genotyped_illumina_100_RHB11-C04.vcf > tp_genes.vcf
+
+less tmp/individual.pandora_genotyped_illumina_100_RHB11-C04.vcf | wc -l
+130042
+less tp_genes.vcf | wc -l
+123879
+
+less tmp/individual.pandora_genotyped_illumina_100_RHB11-C04.vcf | grep ":1:" | wc -l
+108149
+less tmp/individual.pandora_genotyped_illumina_100_RHB11-C04.vcf | grep ":0:" | wc -l
+20789
+less tp_genes.vcf | grep ":1:" | wc -l
+107992
+less tp_genes.vcf | grep ":0:" | wc -l
+14818
+
+### So 5971 of the FP calls were from FP genes (and 157 TP)
+
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | wc -l
+14737
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass" | wc -l
+6960
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep -v "Pass" | grep "Fail-Unmapped,Fail-Unmapped" | wc -l
+784
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep -v "Pass" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch" | wc -l
+6746
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep -v "Pass" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch" | grep "NESTED" | wc -l
+4165
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep -v "Pass" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch" | grep -v "NESTED" | grep "MERGED" | wc -l
+1564
+
+### So of the remainder, in 6960 cases we called the wrong allele
+### In 784 neither allele mapped, compared to 6746 where both alleles mapped incorrectly (in 4165 of these cases, we have an allele nested in the graph, 
+    and in 1564 we have a merged allele) 
+
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass"| grep "GRAPHTYPE=NESTED" |wc -l
+3750
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass"| grep "GRAPHTYPE=SIMPLE" |wc -l
+2807
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass" |wc -l
+6960
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass"| grep "MERGED" |wc -l
+403
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Pass"| grep "GRAPHTYPE=SIMPLE" | grep -v "PH_SNPs" | grep "SNP" | wc -l
+1384
+
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch"| grep "GRAPHTYPE=NESTED" |wc -l
+4165
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch"| grep "GRAPHTYPE=SIMPLE" |wc -l
+1008
+less tp_genes.vcf | grep ":0:" | grep -v "Exclude" | grep "Fail-Bad_allele_mismatch,Fail-Bad_allele_mismatch"| grep "MERGED" |wc -l
+1564
+
+### Looking at where we called the wrong allele, 3750 were in nested parts of the graph, a further 403 were alleles merged in minos and the remaining 2807 were “simple” alleles in the graph (and 1384 of these simple graph alleles were snps)
+### Where both alleles map with errors (the 6746 cases), 4165 of these were from nested regions of the graph and a further 1564 were from alleles merged with minos
+### Note The ones where neither allele matches can be part of the same problem as my calling the wrong allele, as I only investigate 2 alleles at a site including the called allele and ignore the other alts for the evaluation. i.e. if I call a wrong allele, I will either have it as an option when evaluating and see that I’ve called the wrong allele, or neither will map because it was not part of the evaluation panel
+
+
+# Q3: Why the low recall (why are we missing genes)?
+
+# Q4: Do results improve with more Illumina coverage (looks like we gave snippy all of it)?
+
+# Q5: Do results improve without the penalty on coverage on alt alleles?
+
+# Q6: Can I find concrete examples where I got it right and wrong? 

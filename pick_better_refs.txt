@@ -1,0 +1,41 @@
+# Use MASH to pick a panel of refs for cardio 4way
+mash sketch -l list_assemblies.txt
+mash sketch -l list_pb_assemblies.txt
+mash dist list_assemblies.txt.msh list_pb_assemblies.txt.msh > mash_pb.out
+cat mash_pb.out | sort -k3 -n > sorted_mash_pb.out
+
+
+#Best score for each sample
+/nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/assemblies/GCF_000007445.1_ASM744v1_genomic.fna.gz      /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace/truths/CFT073_subsampled_pacbio.fasta  0.000119496     0       995/1000
+/nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/assemblies/GCA_001901315.1_ASM190131v1_genomic.fna.gz   /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace/truths/H131800734_pacbio_assembly.pilon.fa     0.00473708      0       827/1000
+/nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/assemblies/GCA_001901315.1_ASM190131v1_genomic.fna.gz   /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace/truths/H151080744_pacbio_assembly.pilon.fa     0.00594242      0       790/1000
+/nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/assemblies/GCF_000765435.1_ASM76543v1_genomic.fna.gz    /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace/truths/RHB11-C04_subsampled_pacbio.fasta       0.00789262      0       735/1000
+
+
+i.e.
+GCF_000007445.1_ASM744v1_genomic.fna.gz
+GCA_001901315.1_ASM190131v1_genomic.fna.gz
+GCF_000765435.1_ASM76543v1_genomic.fna.gz
+
+#Best collection sum scores
+('GCA_001901315.1_ASM190131v1_genomic.fna.gz', 0.0612091), ('GCF_000019385.1_ASM1938v1_genomic.fna.gz', 0.06225698), ('GCF_000017765.1_ASM1776v1_genomic.fna.gz', 0.06653136999999999), ('GCF_000981485.1_EcoliK12AG100_genomic.fna.gz', 0.06786900000000001), ('GCF_000952955.1_EcRV308Chr_genomic.fna.gz', 0.0679131), ('GCF_000800215.1_ASM80021v1_genomic.fna.gz', 0.06794649999999999), ('GCF_000010245.2_ASM1024v1_genomic.fna.gz', 0.0680502), ('GCA_001276585.2_ASM127658v2_genomic.fna.gz', 0.068155), ('GCF_000023365.1_ASM2336v1_genomic.fna.gz', 0.0681795), ('GCF_000005845.2_ASM584v2_genomic.fna.gz', 0.0682805)
+
+i.e.
+GCA_001901315.1_ASM190131v1_genomic.fna.gz
+GCF_000019385.1_ASM1938v1_genomic.fna.gz
+GCF_000017765.1_ASM1776v1_genomic.fna.gz
+GCF_000981485.1_EcoliK12AG100_genomic.fna.gz
+GCF_000952955.1_EcRV308Chr_genomic.fna.gz
+GCF_000800215.1_ASM80021v1_genomic.fna.gz
+GCF_000010245.2_ASM1024v1_genomic.fna.gz
+GCA_001276585.2_ASM127658v2_genomic.fna.gz
+GCF_000023365.1_ASM2336v1_genomic.fna.gz
+GCF_000005845.2_ASM584v2_genomic.fna.gz
+
+# Pick 5 including individual bests
+GCF_000007445.1_ASM744v1_genomic.fna.gz
+GCA_001901315.1_ASM190131v1_genomic.fna.gz
+GCF_000765435.1_ASM76543v1_genomic.fna.gz
+GCF_000019385.1_ASM1938v1_genomic.fna.gz
+GCF_000017765.1_ASM1776v1_genomic.fna.gz
+
