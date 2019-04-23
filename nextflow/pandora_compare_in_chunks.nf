@@ -107,7 +107,7 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
   
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1250000
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1250000 --min_cluster_size 3
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi
