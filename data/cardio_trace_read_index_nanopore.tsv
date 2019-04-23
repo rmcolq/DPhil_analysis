@@ -1,4 +1,4 @@
-H131800734	/hps/nobackup/iqbal/mbhall/Pandora_variation/Data/Cardio/ecoli20170616/data/porechopped/BC03.fastq.gz
-H151080744	/hps/nobackup/iqbal/mbhall/Pandora_variation/Data/Cardio/ecoli20170412/data/porechopped/BC11.fastq.gz
-CFT073	/nfs/leia/research/iqbal/rmcolq/data/trace/SRX5299443.fastq
-RHB11-C04	/nfs/leia/research/iqbal/rmcolq/data/trace/SRX5299467.fastq
+H131800734	/nfs/leia/research/iqbal/rmcolq/data/cardio/nanopore/H131800734_BC03_100x.fastq
+H151080744	/nfs/leia/research/iqbal/rmcolq/data/cardio/nanopore/H151080744_BC11_100x.fastq
+CFT073	/nfs/leia/research/iqbal/rmcolq/data/trace/SRX5299443_100x.fastq
+RHB11-C04	/nfs/leia/research/iqbal/rmcolq/data/trace/SRX5299467_100x.fastq

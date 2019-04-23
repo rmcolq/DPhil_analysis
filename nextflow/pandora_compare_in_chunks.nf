@@ -9,7 +9,7 @@ params.w = 14
 params.help = false
 params.testing = false
 params.final_outdir = "."
-params.max_forks = 10
+params.max_forks = 100
 
 if (params.help){
     log.info"""
@@ -87,9 +87,9 @@ process pandora_index {
 
 
 process pandora_compare_illumina {
-  memory { 0.0002.GB * params.num_samples * params.chunk_size * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  memory { 0.003.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt }
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -107,11 +107,11 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
   
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1500000 --min_cluster_size 3
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1250000
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi
-  if [ ! -f pandora/pandora_multisample_genotyped.matrix ]; then
+  if [ ! -f pandora/pandora_multisample.matrix ]; then
       exit 1
   fi
   """

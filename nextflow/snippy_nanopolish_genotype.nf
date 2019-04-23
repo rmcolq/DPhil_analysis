@@ -10,7 +10,6 @@ params.testing = false
 params.pipeline_root = ""
 params.final_outdir = "."
 params.max_forks = 10
-params.max_covg = 100
 
 if (params.help){
     log.info"""
@@ -86,16 +85,6 @@ if (params.albacore_summary) {
         }
     }
 
-if (params.pangenome_prg) {
-    pangenome_prg = file(params.pangenome_prg).toAbsolutePath()
-    if (!pangenome_prg.exists()) {
-        exit 1, "Pangenome PRG file not found: ${params.pangenome_prg} -- aborting"
-    }
-}
-else {
-    exit 1, "Pangenome PRG file not provided -- aborting"
-}
-
 process unzip_reference_assembly {
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
 
@@ -134,28 +123,6 @@ if (params.nanopore_reads) {
         """
         nanopolish index -d ${raw_fast5s} -s ${albacore_summary} ${nanopore_reads}
 
-        """
-    }
-
-    process subsample_nanopore {
-        memory { 24.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        publishDir final_outdir, mode: 'copy', overwrite: true
-        
-        input:
-        file nanopore_reads
-        val max_covg
-        
-        output:
-        file("nano_sub1.fq") into subsample_reads
-        
-        """
-        if [[ -s $(nanopore_reads) ]] ; then
-        c=\$(( ${max_covg} / 10000 ))
-        seqtk sample -s100 ${illumina_reads_1} \$c > sub1.fq
-        else
-        exit 1
-        fi
         """
     }
 
@@ -210,34 +177,6 @@ if (params.nanopore_reads) {
 
 if (params.illumina_reads_1 && params.illumina_reads_2) {
 
-    process subsample_illumina {
-        memory { 24.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        publishDir final_outdir, mode: 'copy', overwrite: true
-    
-        input:
-        file illumina_reads_1
-        file illumina_reads_2 
-        val max_covg
-    
-        output:
-        file("sub1.fq"), file("sub2.fq") into subsample_reads
-
-        """
-        if [[ -s $(illumina_reads_1) ]] ; then
-        a=\$(head -n2 $(illumina_reads_1) | tail -n1 | wc -c)
-        b=\$(( \$a * 2 ))
-        c=\$(( ${max_covg} / \$b ))
-        seqtk sample -s100 ${illumina_reads_1} \$c > sub1.fq
-        seqtk sample -s100 ${illumina_reads_2} \$c > sub2.fq
-        else
-        exit 1
-        fi
-        """
-    }
-
-
-
     process snippy_genotype_pe_illumina {
         memory { 24.GB * task.attempt }
         errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -252,13 +191,14 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
 
         input:
         file reference_assembly from reference_assemblies_snippy
-        file(illumina_reads1), file(illumina_reads2) from subsample_reads
+        file illumina_reads_1
+        file illumina_reads_2
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
 
         """
-        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads1} --pe2 ${illumina_reads2}
+        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2}
 
 	v=\$(head -n1 ${reference_assembly})
 	ref_id=\${v:1:\${#v}}
@@ -268,30 +208,6 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
     }
 }
 else if (params.illumina_reads_1) {
-
-    process subsample_illumina {
-        memory { 24.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        publishDir final_outdir, mode: 'copy', overwrite: true
-
-        input:
-        file illumina_reads_1
-        val max_covg
-
-        output:
-        file("sub1.fq") into subsample_reads
-
-        """
-        if [[ -s $(illumina_reads_1) ]] ; then
-        a=\$(head -n2 $(illumina_reads_1) | tail -n1 | wc -c)
-        b=\$(( \$a - 1 ))
-        c=\$(( ${max_covg} / \$b ))
-        seqtk sample -s100 ${illumina_reads_1} \$c > sub1.fq
-        else
-        exit 1
-        fi
-        """
-    }
 
     process snippy_genotype_se_illumina {
         memory { 24.GB * task.attempt } 
@@ -306,13 +222,13 @@ else if (params.illumina_reads_1) {
         
         input:
         file reference_assembly from reference_assemblies_snippy
-        file illumina_reads1 from subsample_reads
+        file illumina_reads_1
         
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
         
 	"""
-        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --se ${illumina_reads1}
+        snippy --cpus 8 --outdir snippy_outdir --reference ${reference_assembly} --se ${illumina_reads_1}
 
 	v=\$(head -n1 ${reference_assembly})
         ref_id=\${v:1:\${#v}}

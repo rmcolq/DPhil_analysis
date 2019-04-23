@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 def load_dfs(directory):
     dfs = []
     files = glob.glob("%s/*.csv" %directory)
+    files.sort()
     for f in files:
         df = pd.read_csv(f, index_col=0)
         print(df)
@@ -41,6 +42,7 @@ def plot_graphs(items, x_max, y_label):
         colormap_nanopolish = plt.cm.cool
         snippy_i = 0
         nanopolish_i = 0
+        pandora_i = 0
 
         # Make a scatter plot
         for x in items:
@@ -49,21 +51,19 @@ def plot_graphs(items, x_max, y_label):
                     x['name'] = "pandora_genotyped_nanopore_full"
                 elif x['name'].values[0].startswith("pandora_genotyped_30"):
                     x['name'] = "pandora_genotyped_nanopore_30"
-                if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall"):
-                    col = colormap_pandora(0)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(50)
+
+                if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall") or x['name'].values[0].startswith("pandora_genotyped_nanopore_100"):
+                    col = colormap_pandora(pandora_i)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
-                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 3:
-                    col = colormap_pandora(100)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(150)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    pandora_i += 80
                 elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 0:
-                    col = colormap_pandora(200)
-                    if "ref" in x['name'].values[0]:
-                        col = colormap_pandora(250)
+                    col = colormap_pandora(pandora_i)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    pandora_i += 80
+                elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 3:
+                    col = colormap_pandora(pandora_i)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    pandora_i += 80
                 elif x['name'].values[0].startswith("snippy") and i > 1:
                     col = colormap_snippy(snippy_i*20)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)

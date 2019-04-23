@@ -192,7 +192,7 @@ def minos_to_df(name):
     ytotal = sum(y_stats['total']) - sum(y_stats['excluded_vars'])
     for confidence in c_values:
         dnadiff_frac = float(sum(y_gt[y_gt['GT_CONF'] >= confidence]['Count']))/float(ytotal)
-        if dnadiff_frac < 0.1 or confidence == 0:
+        if dnadiff_frac < 0.001 or confidence == 0:
             continue
         yscat.append(dnadiff_frac)
         sum_fp = sum(x_fp[x_fp['GT_CONF'] >= confidence]['Count'])
