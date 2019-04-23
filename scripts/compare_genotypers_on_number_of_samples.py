@@ -270,7 +270,7 @@ def compare_pair(pair, names, recall_flank):
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
 parser.add_argument('--sample_tsv', '-t1', type=str,
                     help='TSV with a line for each sample, containing ID, TRUTH_FASTA, VCF_DIRECTORY, MASK')
-parser.add_argument('--recall_flank', '-fr', type=int, default=9,
+parser.add_argument('--recall_flank', '-fr', type=int, default=11,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')

@@ -41,3 +41,15 @@ mv 14210168 RHB11-C04_subsampled_pacbio.fasta
 
 # NB the preprint concludes that the filtered assemblies were worse,  but the downsampled ones were the same.
 # There were few differences between Nanopore and PacBio hybrid assemblies, and more between these and the reference assembly in NCBI for CFT073
+
+# Download the reads from the other 2 e coli datasets
+# Biosample: SAMN10819815 (RBHSTW-00122, sewage influent)
+# Illumina: SRX5287358
+# PacBio: SRX5299475
+# Nanopore: SRX5299440
+#
+# Biosample: SAMN10819816 (RHB10-C07, sheap feces)
+# Illumina: SRX5287357
+# Nanopore: SRX5299460
+# PacBio: SRX5299454
+for n in SRX5287358 SRX5299440 SRX5299475 SRX5287357 SRX5299454 SRX5299460; do bsub.py 10 testfastqdump_$n fastq-dump $n; done
