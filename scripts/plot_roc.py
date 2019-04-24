@@ -19,7 +19,7 @@ def load_dfs(directory):
         dfs.append(df)
     return dfs
 
-def plot_graphs(items, x_max, y_label):
+def plot_graphs(items, x_max, y_label, y_min):
     for i in range(5):
         # Define plot
         fig, ax = plt.subplots()
@@ -35,6 +35,8 @@ def plot_graphs(items, x_max, y_label):
         if x_max > 0:
             plt.xlim(-0.0005, x_max)
             plt.ylim(0.0, 1.0)
+        if y_min > 0:
+            plt.ylim(y_min, 1.0)
 
         # Set colormaps
         colormap_pandora = plt.cm.autumn
@@ -46,7 +48,7 @@ def plot_graphs(items, x_max, y_label):
 
         # Make a scatter plot
         for x in items:
-            if len(x['name'].values) > 0:
+            if len(x['name'].values) > 0 and max(x['yscat'].values) > y_min:
                 if x['name'].values[0].startswith("pandora_genotyped_full"):
                     x['name'] = "pandora_genotyped_nanopore_full"
                 elif x['name'].values[0].startswith("pandora_genotyped_30"):
@@ -89,6 +91,8 @@ parser.add_argument('--x_max', type=float, default=0,
                     help='Maximum x-axis')
 parser.add_argument('--y_label', type=str, default='Fraction of dnadiff SNPs discoverable from VCFs',
                     help='Label for y axis')
+parser.add_argument('--y_min', type=float, default=0,
+                    help='Minimum value for y-axis')
 args = parser.parse_args()
 
 SMALL_SIZE = 16
@@ -104,4 +108,4 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 dfs = load_dfs(args.directory)
-plot_graphs(dfs, args.x_max, args.y_label)
+plot_graphs(dfs, args.x_max, args.y_label, args.y_min)

@@ -39,3 +39,14 @@ GCF_000765435.1_ASM76543v1_genomic.fna.gz
 GCF_000019385.1_ASM1938v1_genomic.fna.gz
 GCF_000017765.1_ASM1776v1_genomic.fna.gz
 
+# check collective best scores excluding H131800734 so no double counting
+('GCF_000019385.1_ASM1938v1_genomic.fna.gz', 0.054550169999999995), ('GCA_001901315.1_ASM190131v1_genomic.fna.gz', 0.05647202), ('GCF_000017765.1_ASM1776v1_genomic.fna.gz', 0.0565937), ('GCA_001900905.1_ASM190090v1_genomic.fna.gz', 0.057100939999999996), ('GCF_000981485.1_EcoliK12AG100_genomic.fna.gz', 0.0571285), ('GCF_000952955.1_EcRV308Chr_genomic.fna.gz', 0.0572586), ('GCF_000800215.1_ASM80021v1_genomic.fna.gz', 0.057377700000000004), ('GCF_000010245.2_ASM1024v1_genomic.fna.gz', 0.0573957), ('GCF_000023365.1_ASM2336v1_genomic.fna.gz', 0.057439000000000004), ('GCF_000005845.2_ASM584v2_genomic.fna.gz', 0.05754)
+
+i.e.
+GCF_000019385.1_ASM1938v1_genomic.fna.gz
+GCA_001901315.1_ASM190131v1_genomic.fna.gz
+GCF_000017765.1_ASM1776v1_genomic.fna.gz
+GCA_001900905.1_ASM190090v1_genomic.fna.gz
+GCF_000981485.1_EcoliK12AG100_genomic.fna.gz
+
+#conclusion is that the 5 picked were the best set of 5

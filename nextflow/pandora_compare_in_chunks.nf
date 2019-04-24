@@ -87,9 +87,9 @@ process pandora_index {
 
 
 process pandora_compare_illumina {
-  memory { 0.003.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt }
-  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
-  maxRetries 2
+  memory { task.attempt < 2 ? 0.001.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt : 100.GB}
+  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
+  maxRetries 3
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -107,7 +107,7 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
   
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --illumina --max_covg ${params.max_covg} -w ${w} -k ${k} --genome_size 1250000 --min_cluster_size 3
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k}
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi

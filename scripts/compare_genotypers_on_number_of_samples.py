@@ -13,6 +13,8 @@ from Bio import SeqIO
 import vcf
 import gzip
 import itertools
+from functools import partial
+from multiprocessing import Pool
 
 
 class Error (Exception): pass
@@ -34,10 +36,10 @@ def syscall(command, allow_fail=False):
     print(completed_process.stdout)
     return completed_process
 
-def run_dnadiff(ref, query):
+def run_dnadiff(ref, query, name):
     '''Runs dnadiff to map ref fasta to query fasta and create a SNPs file of differences.'''
     dnadiff_binary = find_binary('dnadiff')
-    command = ' '.join([dnadiff_binary, ref, query, '-p', 'tmp/dnadiff'])
+    command = ' '.join([dnadiff_binary, ref, query, '-p', 'tmp/dnadiff_%s' %name])
     syscall(command)
     files = glob.glob('tmp/dnadiff*')
     for f in files:
@@ -239,7 +241,7 @@ def compare_pair(pair, names, recall_flank):
     (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = pair[0]
     (num2, id2, zipped_truth2, sample_dir2, mask2, truth2) = pair[1]
     print("Run on sample pair", id1, id2)
-    run_dnadiff(truth1, truth2)
+    run_dnadiff(truth1, truth2, id1 + "_" + id2)
     pair_names = names[:]
     pairs = get_vcf_pairs(sample_dir1, sample_dir2)
     for run in pairs:
@@ -248,7 +250,7 @@ def compare_pair(pair, names, recall_flank):
         pair_names.remove(name)
         comp_name = name + "_" + id1 + "_" + id2
         if len(glob.glob("tmp/compare." + comp_name + "*")) == 0:
-            run_compare("tmp/dnadiff.snps", truth1, truth2, vcf1, vcf2, vcf_ref, comp_name, recall_flank, mask1, mask2)
+            run_compare("tmp/dnadiff_%s_%s.snps" %(id1, id2), truth1, truth2, vcf1, vcf2, vcf_ref, comp_name, recall_flank, mask1, mask2)
             append_stats_y(name, comp_name)
     for name in pair_names:
         print("Add null compare stats for", name, id1, id2)
@@ -256,7 +258,7 @@ def compare_pair(pair, names, recall_flank):
         if len(glob.glob("tmp/compare." + comp_name + "*")) == 0:
             with open("tmp/compare." + comp_name + ".stats.tsv", 'w') as f:
                 stats = {x: 0 for x in ['total', 'found_vars', 'missed_vars', 'excluded_vars']}
-                with open("tmp/dnadiff.snps",'r') as g:
+                with open("tmp/dnadiff_%s_%s.snps" %(id1, id2),'r') as g:
                     for line in g:
                         stats['total'] += 1
                         stats['missed_vars'] += 1
@@ -267,6 +269,20 @@ def compare_pair(pair, names, recall_flank):
                 print('GT_CONF\tCount', file=f)
             append_stats_y(name, comp_name)    
 
+def run_individual(num1, id1, zipped_truth1, sample_dir1, mask1, truth1, precision_flank):
+    vcfs = get_vcfs(sample_dir1)
+    for run in vcfs:
+        name, vcf_ref, vcf1 = run
+        print("run individual ", name, vcf1)
+        indiv_name = name + "_" + id1
+        if len(glob.glob("tmp/individual." + indiv_name + "*")) == 0:
+            run_individual_minos(truth1, vcf1, vcf_ref, indiv_name, precision_flank, mask1)
+            print("append stats")
+            append_stats_x(name, indiv_name)
+        #files = glob.glob("tmp/individual*")
+        #for f in files:
+        #      os.unlink(f)
+
 parser = argparse.ArgumentParser(description='Identifies pairs of VCF files called against the same reference in 2 sample directories and runs a minos system call to evaluate how many dnadiff snp differences are captued between each pair of VCFs.')
 parser.add_argument('--sample_tsv', '-t1', type=str,
                     help='TSV with a line for each sample, containing ID, TRUTH_FASTA, VCF_DIRECTORY, MASK')
@@ -274,6 +290,8 @@ parser.add_argument('--recall_flank', '-fr', type=int, default=11,
                     help='Size of flank sequence to use when comparing true alleles to vcf alleles')
 parser.add_argument('--precision_flank', '-fp', type=int, default=31,
                     help='Size of flank sequence to use when comparing alleles to truth assembly')
+parser.add_argument('--num_threads', '-t', type=int, default=1,
+                    help='Number of parallel process threads')
 args = parser.parse_args()
 
 index = pd.read_csv(args.sample_tsv, sep='\t', header=None, names=['id', 'truth', 'vcf_dir', 'mask'])
@@ -285,23 +303,18 @@ if not os.path.exists('tmp'):
     os.mkdir("tmp")
 
 # y
-for pair in itertools.combinations(index.itertuples(), 2):
-    compare_pair(pair, names, args.recall_flank)
+pairs = [[[list(p[0]), list(p[1])], names, args.recall_flank] for p in itertools.combinations(index.itertuples(), 2)]
+print(pairs)
+with Pool(args.num_threads) as pool:
+    r = pool.starmap(compare_pair, pairs) 
+
 # x
-for s in index.itertuples():
-    (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = s
-    vcfs = get_vcfs(sample_dir1)
-    for run in vcfs:
-        name, vcf_ref, vcf1 = run
-        print("run individual ", name, vcf1)
-        indiv_name = name + "_" + id1
-        if len(glob.glob("tmp/individual." + indiv_name + "*")) == 0:
-            run_individual_minos(truth1, vcf1, vcf_ref, indiv_name, args.precision_flank, mask1)
-            print("append stats")
-            append_stats_x(name, indiv_name)
-        #files = glob.glob("tmp/individual*")
-        #for f in files:
-        #      os.unlink(f)
+samples = [list(i) for i in index.itertuples()]
+for s in samples:
+    s.append(args.precision_flank)
+print(samples)
+with Pool(args.num_threads) as pool:
+    r = pool.starmap(run_individual, samples)
 
 for truth in index['unzipped_truth']:
     files = glob.glob(truth + ".*")
