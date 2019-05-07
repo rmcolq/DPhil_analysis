@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.colors
 
 def load_dfs(directory):
     dfs = []
@@ -19,7 +20,7 @@ def load_dfs(directory):
         dfs.append(df)
     return dfs
 
-def plot_graphs(items, x_max, y_label, y_min):
+def plot_graphs(items, x_max, y_label, y_min, legend_outside):
     for i in range(5):
         # Define plot
         fig, ax = plt.subplots()
@@ -39,9 +40,9 @@ def plot_graphs(items, x_max, y_label, y_min):
             plt.ylim(y_min, 1.0)
 
         # Set colormaps
-        colormap_pandora = plt.cm.autumn
-        colormap_snippy = plt.cm.winter
-        colormap_nanopolish = plt.cm.cool
+        colormap_pandora = matplotlib.colors.LinearSegmentedColormap.from_list("", ["crimson", "darkorange","gold", "yellow"])
+        colormap_snippy = matplotlib.colors.LinearSegmentedColormap.from_list("", ["mediumblue", "blue", "royalblue", "deepskyblue"])
+        colormap_nanopolish = matplotlib.colors.LinearSegmentedColormap.from_list("", ["forestgreen", "limegreen", "greenyellow"])
         snippy_i = 0
         nanopolish_i = 0
         pandora_i = 0
@@ -66,6 +67,10 @@ def plot_graphs(items, x_max, y_label, y_min):
                     col = colormap_pandora(pandora_i)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
                     pandora_i += 80
+                elif x['name'].values[0].startswith("pandora_genotyped_2") and i > 3:
+                    col = colormap_pandora(pandora_i)
+                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    pandora_i += 80
                 elif x['name'].values[0].startswith("snippy") and i > 1:
                     col = colormap_snippy(snippy_i*20)
                     plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
@@ -79,8 +84,11 @@ def plot_graphs(items, x_max, y_label, y_min):
         if len(handles) > 0 and len(labels) > 0 :
             hl = sorted(zip(handles, labels),key=operator.itemgetter(1))
             handles2, labels2 = zip(*hl)
-            ax.legend(handles2, labels2, frameon=False, loc='lower right')
-            plt.savefig('roc%d.png' %i, transparent=True)
+            if legend_outside:
+                ax.legend(handles2, labels2, frameon=False, loc='lower left', bbox_to_anchor=(1.02, 0))
+            else:
+                ax.legend(handles2, labels2, frameon=False, loc='lower right')
+            plt.savefig('roc%d.png' %i, transparent=True, bbox_inches='tight')
         else:
             print(handles, labels)
 
@@ -93,6 +101,8 @@ parser.add_argument('--y_label', type=str, default='Fraction of dnadiff SNPs dis
                     help='Label for y axis')
 parser.add_argument('--y_min', type=float, default=0,
                     help='Minimum value for y-axis')
+parser.add_argument('--legend_outside', action='store_true',
+                    help='Plot the legend outside the graph')
 args = parser.parse_args()
 
 SMALL_SIZE = 16
@@ -108,4 +118,4 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 dfs = load_dfs(args.directory)
-plot_graphs(dfs, args.x_max, args.y_label, args.y_min)
+plot_graphs(dfs, args.x_max, args.y_label, args.y_min, args.legend_outside)
