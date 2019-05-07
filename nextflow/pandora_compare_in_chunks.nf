@@ -8,6 +8,7 @@ params.w = 14
 
 params.help = false
 params.testing = false
+params.illumina = false
 params.final_outdir = "."
 params.max_forks = 100
 
@@ -25,6 +26,7 @@ if (params.help){
           --num_samples		INT	Number of samples, scales memory requirement, default=15
           --max_covg		INT	Max covg to use, default=100
           --testing             FLAG    Run in test mode on small data which requires less memory
+          --illumina		FLAG	is data illumina
           --final_outdir        DIRECTORY       Where to put final output files
           --max_forks           Not used
 
@@ -64,7 +66,7 @@ Channel
     .set{ chunks_ch }
 
 process pandora_index {
-  memory { 0.8.GB * task.attempt }
+  memory { 0.25.MB * params.chunk_size * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
@@ -85,11 +87,11 @@ process pandora_index {
   """
 } 
 
-
+if (params.illumina){
 process pandora_compare_illumina {
-  memory { task.attempt < 2 ? 0.001.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt : 100.GB}
-  errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-  maxRetries 3
+  memory { task.attempt < 1 ? 0.0025.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt : 120.GB}
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   container {
       'shub://rmcolq/pandora:pandora'
   }
@@ -105,9 +107,9 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample_genotyped.vcf") into vcfs
   file("pandora/pandora_multisample.matrix") into matrices
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
-  
+    
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k}
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k} --illumina
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi
@@ -116,39 +118,40 @@ process pandora_compare_illumina {
   fi
   """
 } 
-
-/*process pandora_compare_nanopore {
-  memory { 0.0001.GB * params.num_samples * params.chunk_size * task.attempt }
-  errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
-  maxRetries 3
+}
+else {
+process pandora_compare {
+  memory { task.attempt < 1 ? 0.0025.MB * params.num_samples * params.chunk_size * params.max_covg * task.attempt : 120.GB}
+  errorStrategy {task.attempt < 2 ? 'retry' : 'ignore'}
+  maxRetries 2
   container {
       'shub://rmcolq/pandora:pandora'
-  }
+  }   
   maxForks params.max_forks
-
+  
   input:
   set(file(prg), file(idx), file(kmer_prgs)) from pandora_idx
   file read_tsv
   val w from params.w
   val k from params.k
-
+  
   output:
-  file("pandora_multisample_genotyped.vcf") into vcfs
-  file("vcf_header.txt") into vcf_headers
-  file("pandora_multisample.matrix") into matrices
-  file("matrix_header.txt") into matrix_headers
+  file("pandora/pandora_multisample_genotyped.vcf") into vcfs
+  file("pandora/pandora_multisample.matrix") into matrices
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
-
+    
   """
   pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k}
-  grep -v "#" pandora/pandora_multisample_genotyped.vcf > pandora_multisample_genotyped.vcf
-  grep "#" pandora/pandora_multisample_genotyped.vcf > vcf_header.txt
-  tail -n+2 pandora/pandora_multisample.matrix > pandora_multisample.matrix
-  head -n1 pandora/pandora_multisample.matrix > matrix_header.txt
-  """
-}*/
+  if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
+      exit 1
+  fi  
+  if [ ! -f pandora/pandora_multisample.matrix ]; then
+      exit 1
+  fi  
+  """ 
+}
+}
 
-vcfs.collectFile(name: final_outdir/'pandora_multisample_genotyped.vcf', keepHeader: true, skip: 12)
 vcf_refs.collectFile(name: final_outdir/'pandora_multisample.vcf_ref.fa')
 matrices.collectFile(name: final_outdir/'pandora_multisample.matrix', keepHeader:true)
 

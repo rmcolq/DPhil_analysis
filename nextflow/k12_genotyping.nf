@@ -232,6 +232,7 @@ process simulate_new_ref {
 }
 
 if (params.nanopore_reads) {
+
 process pandora_genotype_nanopore {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -250,43 +251,16 @@ process pandora_genotype_nanopore {
 
     output:
     set(file("pandora_genotyped_full.vcf"), file("pandora_genotyped_full.ref.fa")) into pandora_full_vcf
-    set val("Pandora\tNanopore\t100"), file("timeinfo.txt") into pandora_full_time
+    set val("Pandora\tNanopore\t300"), file("timeinfo.txt") into pandora_full_time
 
     """
-    echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 300 &> pandora.log" > command.sh
+    echo "pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype &> pandora.log" > command.sh
     /usr/bin/time -v bash command.sh &> timeinfo.txt
     seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_full.ref.fa
     cp pandora/pandora_genotyped.vcf pandora_genotyped_full.vcf
     """
 }
-/*
-process pandora_genotype_nanopore_ref {
-    memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-    maxRetries 3
-    container {
-      'shub://rmcolq/pandora:pandora'
-    } 
-    time '2s'
-    
-    publishDir final_outdir, mode: 'copy', overwrite: true
-    
-    input:
-    file pangenome_prg
-    file nanopore_reads
-    file index from pandora_idx
-    file kmer_prgs from pandora_kmer_prgs
-    file ref from reference_assemblies_pandora_full
-    
-    output:
-    set(file("pandora_genotyped_full_ref.vcf"), file("pandora_genotyped_full_ref.ref.fa")) into pandora_full_vcf_ref
-    
-    """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --vcf_refs ${ref}
-    cp ${ref} pandora_genotyped_full_ref.ref.fa
-    cp pandora/pandora_genotyped.vcf pandora_genotyped_full_ref.vcf
-    """
-}*/
+
 process pandora_genotype_nanopore_30 {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -314,34 +288,7 @@ process pandora_genotype_nanopore_30 {
     cp pandora/pandora_genotyped.vcf pandora_genotyped_30X.vcf
     """
 }
-/*
-process pandora_genotype_nanopore_30_ref {
-    memory { 40.GB * task.attempt }
-    errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-    maxRetries 3
-    container {
-      'shub://rmcolq/pandora:pandora'
-    } 
-    time '2s'
-    
-    publishDir final_outdir, mode: 'copy', overwrite: true
-    
-    input:
-    file pangenome_prg
-    file nanopore_reads
-    file index from pandora_idx
-    file kmer_prgs from pandora_kmer_prgs
-    file ref from reference_assemblies_pandora_30
-    
-    output:
-    set(file("pandora_genotyped_30X_ref.vcf"), file("pandora_genotyped_30X_ref.ref.fa")) into pandora_30X_vcf_ref
-    
-    """
-    pandora map -p ${pangenome_prg} -r ${nanopore_reads} --genotype --max_covg 30 --vcf_refs ${ref}
-    cp ${ref} pandora_genotyped_30X_ref.ref.fa
-    cp pandora/pandora_genotyped.vcf pandora_genotyped_30X_ref.vcf 
-    """
-} */
+
 process nanopolish_index {
     memory { 40.GB * task.attempt }
     errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
@@ -356,21 +303,13 @@ process nanopolish_index {
     file albacore_summary
 
     output:
-    set file("reads.fq*") into nanopolish_index
+    set file("${nanopore_reads}.*") into nanopolish_index
 
     """
-    v=${nanopore_reads}
-    if [ \${v: -3} == ".gz" ]
-    then
-    zcat \$v | head -n600000 > reads.fq
-    else
-    zcat \$v | head -n600000 > reads.tmp
-    mv reads.tmp reads.fq
-    fi
-
-    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} reads.fq
+    nanopolish index -d ${raw_fast5s} -s ${albacore_summary} ${nanopore_reads}
     """
 }
+
 process nanopolish_genotype_nanopore {
     memory { 32.GB * task.attempt }
     errorStrategy {task.attempt < 1 ? 'retry' : 'ignore'}
@@ -387,22 +326,23 @@ process nanopolish_genotype_nanopore {
     input:
     file reference_assembly from reference_assemblies_nanopolish
     file nanopolish_index
+    file nanopore_reads
     file raw_fast5s
 
     output:
     set(file("nanopolish_*.vcf"), file("nanopolish_*.ref.fa")) into nanopolish_vcf
-    set val("Nanopolish\tNanopore\t100"), file("timeinfo.txt") into nanopolish_time
+    set val("Nanopolish\tNanopore\t300"), file("timeinfo.txt") into nanopolish_time
 
     """
     bwa index ${reference_assembly}
-    bwa mem -x ont2d -t 8 ${reference_assembly} reads.fq | samtools sort -o reads.sorted.bam -T reads.tmp
+    bwa mem -x ont2d -t 8 ${reference_assembly} ${nanopore_reads} | samtools sort -o reads.sorted.bam -T reads.tmp
     samtools index reads.sorted.bam
     mkdir -p nanopolish.results/vcf
     echo "python3 /nanopolish/scripts/nanopolish_makerange.py ${reference_assembly} | parallel --results nanopolish.results -P 2 \
     nanopolish variants \
       -t 8 \
       -w {1} \
-      --reads reads.fq \
+      --reads ${nanopore_reads} \
       --bam reads.sorted.bam \
       --genome ${reference_assembly} \
       -o nanopolish.results/vcf/nanopolish.{1}.vcf \
@@ -453,7 +393,7 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
-        set val("Snippy\tIllumina\t100"), file("timeinfo.txt") into snippy_time
+        set val("Snippy\tIllumina\t300"), file("timeinfo.txt") into snippy_time
 
         """
         echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --pe1 ${illumina_reads_1} --pe2 ${illumina_reads_2} &> snippy.log" > command.sh
@@ -485,22 +425,11 @@ else if (params.illumina_reads_1) {
 
         output:
         set(file("snippy_*.vcf"), file("snippy_*.ref.fa")) into snippy_vcf
-        set val("Snippy\tIllumina\t100"), file("timeinfo.txt") into snippy_time
+        set val("Snippy\tIllumina\t300"), file("timeinfo.txt") into snippy_time
 
         """
-        v=${illumina_reads_1}
-        if [ \${v: -3} == ".gz" ]
-        then
-        t=\${v::-3}
-        zcat \$v | head -n19200000 > \$t
-        else
-        zcat \$v | head -n19200000 > reads.tmp
-        mv reads.tmp \$v
-        t=\$v
-        fi
-
         mkdir snippy_tmp
-        echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se \$t --tmpdir \$(echo \$PWD)/snippy_tmp &> snippy.log" > command.sh
+        echo "snippy --cpus 1 --outdir snippy_outdir --reference ${reference_assembly} --se ${illumina_reads_1} --tmpdir \$(echo \$PWD)/snippy_tmp &> snippy.log" > command.sh
         
         /usr/bin/time -v bash command.sh &> timeinfo.txt
 
@@ -528,43 +457,15 @@ if (params.illumina_reads_1) {
 
         output:
         set(file("pandora_genotyped_illumina.vcf"), file("pandora_genotyped_illumina.ref.fa")) into pandora_illumina_vcf
-        set val("Pandora\tIllumina\t100"), file("timeinfo.txt") into pandora_illumina_time
+        set val("Pandora\tIllumina\t300"), file("timeinfo.txt") into pandora_illumina_time
 
         """
-        echo "pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --max_diff 16 --max_covg 300 &> pandora.log" > command.sh
+        echo "pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --max_diff 16 &> pandora.log" > command.sh
         /usr/bin/time -v bash command.sh &> timeinfo.txt
         seqtk seq -a pandora/pandora.consensus.fq.gz | awk '{print \$1;}' > pandora_genotyped_illumina.ref.fa
         cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina.vcf
         """
     }
-/*
-    process pandora_genotype_illumina_ref {
-        memory { 55.GB * task.attempt }
-        errorStrategy {task.attempt < 3 ? 'retry' : 'ignore'}
-        maxRetries 3
-        container {
-          'shub://rmcolq/pandora:pandora'
-        }
-        time '2s'
-
-        publishDir final_outdir, mode: 'copy', overwrite: true
-
-        input:
-        file pangenome_prg
-        file illumina_reads
-        file index from pandora_idx
-        file kmer_prgs from pandora_kmer_prgs
-        file ref from reference_assemblies_pandora_illumina
-
-        output:
-        set(file("pandora_genotyped_illumina_ref.vcf"), file("pandora_genotyped_illumina_ref.ref.fa")) into pandora_illumina_vcf_ref
-
-        """
-        pandora map -p ${pangenome_prg} -r ${illumina_reads} --genotype --illumina --vcf_refs ${ref}
-        cp ${ref} pandora_genotyped_illumina_ref.ref.fa
-        cp pandora/pandora_genotyped.vcf pandora_genotyped_illumina_ref.vcf
-        """
-    }*/
 }
 if (params.illumina_reads_1) {
     pandora_illumina_vcf.concat(snippy_vcf).set { illumina_channels }
