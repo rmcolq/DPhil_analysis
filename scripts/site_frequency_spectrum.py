@@ -272,17 +272,32 @@ for i,p in enumerate(gene_partition):
 x0 = [3.0,0.001]
 
 res_lsq = least_squares(fun3, x0, args=(N,K,S,y))
+print("Linear loss least squares (rho,theta2):", res_lsq.x)
+save_obj(res_lsq, "%s/res_lsq.pkl" %outdir)
 res_l1 = least_squares(fun3, x0, loss='soft_l1', args=(N,K,S,y))
+print("Soft L1 loss least squares (rho,theta2):",res_l1.x)
+save_obj(res_l1, "%s/res_l1.pkl" %outdir)
 res_hub = least_squares(fun3, x0, loss='huber', args=(N,K,S,y))
+print("Huber loss least squares (rho,theta2):",res_hub.x)
+save_obj(res_hub, "%s/res_hub.pkl" %outdir)
 res_log = least_squares(fun3, x0, loss='cauchy', args=(N,K,S,y))
+print("Cauchy (log) loss least squares (rho,theta2):",res_log.x)
+save_obj(res_log, "%s/res_log.pkl" %outdir)
 res_at = least_squares(fun3, x0, loss='arctan', args=(N,K,S,y))
+print("Arctan loss least squares (rho,theta2):",res_at.x)
+save_obj(res_at, "%s/res_at.pkl" %outdir)
 
 for i in [50,100,150,200,250]:
     fig, ax = plt.subplots()
     genes = gene_partition[i-1]
     spectrums = []
     for s in range(1,k):
-        spectrums.append([sum([1 for c in count_dict[gene] if int(c) == s]) for gene in genes])
+        spec = []
+        for gene in genes:
+            if gene not in count_dict.keys():
+                continue
+            spec.append(sum([1 for c in count_dict[gene] if int(c) == s]))
+        spectrums.append(spec)
     ax.violinplot(spectrums,showmeans=True)
     ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency', xticklabels=[s for s in range(1,k)])
     
@@ -301,9 +316,3 @@ for i in [50,100,150,200,250]:
     plt.ylim((0.5,10000))
     plt.legend()
     plt.savefig("%s/site_frequency_spectrum_with_fits_%s.png" %(i,outdir), transparent=True)
-
-print("Linear loss least squares (rho,theta2):", res_lsq.x)
-print("Cauchy (log) loss least squares (rho,theta2):",res_log.x)
-print("Soft L1 loss least squares (rho,theta2):",res_l1.x)
-print("Huber loss least squares (rho,theta2):",res_hub.x)
-print("Arctan loss least squares (rho,theta2):",res_at.x)

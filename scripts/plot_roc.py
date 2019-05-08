@@ -20,7 +20,16 @@ def load_dfs(directory):
         dfs.append(df)
     return dfs
 
-def plot_graphs(items, x_max, y_label, y_min, legend_outside):
+def plot_graphs(items, x_max, y_label, y_min, legend_outside, label_file):
+    # Load labels if we have them
+    label_dict = {}
+    if label_file != "":
+        with open(label_file, "r") as handle:
+            for line in handle:
+                i,lab = line.strip().split('\t')
+                label_dict[i] = lab
+    print(label_dict)
+
     for i in range(5):
         # Define plot
         fig, ax = plt.subplots()
@@ -49,6 +58,9 @@ def plot_graphs(items, x_max, y_label, y_min, legend_outside):
 
         # Make a scatter plot
         for x in items:
+            plot_label = x['name'].values[0]
+            if x['name'].values[0] in label_dict.keys():
+                plot_label = label_dict[plot_label]
             if len(x['name'].values) > 0 and max(x['yscat'].values) > y_min:
                 if x['name'].values[0].startswith("pandora_genotyped_full"):
                     x['name'] = "pandora_genotyped_nanopore_full"
@@ -57,27 +69,27 @@ def plot_graphs(items, x_max, y_label, y_min, legend_outside):
 
                 if x['name'].values[0].startswith("pandora_genotyped_nanopore_full") or x['name'].values[0].startswith("pandora_recall") or x['name'].values[0].startswith("pandora_genotyped_nanopore_100"):
                     col = colormap_pandora(pandora_i)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     pandora_i += 80
                 elif x['name'].values[0].startswith("pandora_genotyped_nanopore_30") and i > 0:
                     col = colormap_pandora(pandora_i)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     pandora_i += 80
                 elif x['name'].values[0].startswith("pandora_genotyped_illumina") and i > 3:
                     col = colormap_pandora(pandora_i)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     pandora_i += 80
                 elif x['name'].values[0].startswith("pandora_genotyped_2") and i > 3:
                     col = colormap_pandora(pandora_i)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     pandora_i += 80
                 elif x['name'].values[0].startswith("snippy") and i > 1:
                     col = colormap_snippy(snippy_i*20)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     snippy_i += 1
                 elif x['name'].values[0].startswith("nanopolish") and i > 2:
                     col = colormap_nanopolish(nanopolish_i*20)
-                    plt.step(x['xscat'], x['yscat'], label=x['name'].values[0], c=col)
+                    plt.step(x['xscat'], x['yscat'], label=plot_label, c=col)
                     nanopolish_i += 1
 
         handles, labels = ax.get_legend_handles_labels()
@@ -103,6 +115,8 @@ parser.add_argument('--y_min', type=float, default=0,
                     help='Minimum value for y-axis')
 parser.add_argument('--legend_outside', action='store_true',
                     help='Plot the legend outside the graph')
+parser.add_argument('--labels', type=str, default="",
+                    help='tsvfile of labels for plot')
 args = parser.parse_args()
 
 SMALL_SIZE = 16
@@ -118,4 +132,4 @@ plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
 plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 dfs = load_dfs(args.directory)
-plot_graphs(dfs, args.x_max, args.y_label, args.y_min, args.legend_outside)
+plot_graphs(dfs, args.x_max, args.y_label, args.y_min, args.legend_outside, args.labels)

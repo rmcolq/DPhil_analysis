@@ -220,9 +220,11 @@ process simulate_new_ref {
     cat tmp.simulated_vars.vcf | grep "#" > simulated_vars.vcf
     cat tmp.simulated_vars.vcf | grep -v "#" | sort -k2 -n >> simulated_vars.vcf
     python3 ${params.pipeline_root}/scripts/filter_overlaps_in_vcf.py --vcf simulated_vars.vcf
+    sed -i 's/\\.\\:0/0:0/g' simulated_vars.filtered.vcf 
     bgzip simulated_vars.filtered.vcf
     tabix -p vcf simulated_vars.filtered.vcf.gz
     cat truth.fa | vcf-consensus simulated_vars.filtered.vcf.gz > simulated_ref.fa
+    gunzip simulated_vars.filtered.vcf.gz
 
     bwa index simulated_ref.fa
     bwa mem simulated_ref.fa ${ref} > pandora_ref.sam

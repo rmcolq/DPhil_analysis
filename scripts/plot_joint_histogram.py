@@ -4,7 +4,16 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import argparse
 
-def plot_count_hist(files, prefix=""):
+def plot_count_hist(files, prefix="", label_file=""):
+    # Load labels if we have them
+    label_dict = {}
+    if label_file != "":
+        with open(label_file, "r") as handle:
+            for line in handle:
+                i,lab = line.strip().split('\t')
+                label_dict[i] = lab
+    print(label_dict)
+
     print("parameters")
     print(files, prefix)
     count_dict = {}
@@ -20,7 +29,7 @@ def plot_count_hist(files, prefix=""):
 
     plt.rcParams['figure.figsize'] = 10,6
     fig, ax = plt.subplots()
-    plt.style.use('seaborn-deep')
+    plt.style.use('seaborn-colorblind')
     ax.grid(b=True)
     ax.set_axisbelow(b=True)
     types = list(count_dict.keys())
@@ -28,7 +37,7 @@ def plot_count_hist(files, prefix=""):
     print(types)
     ax.hist([count_dict[t] for t in types],
           density=True,
-          label=types,
+          label=[label_dict[t] for t in types],
           align="mid",
           bins=range(0, 42, 1))
 
@@ -39,11 +48,13 @@ def plot_count_hist(files, prefix=""):
     plt.savefig(prefix + 'joint.sam_mismatch_counts.png', transparent=True)
 
     fig, ax = plt.subplots()
+    plt.style.use('seaborn-colorblind')
     plt.grid(b=True, which='major', color='LightGrey', linestyle='-')
     plt.grid(b=True, which='minor', color='GhostWhite', linestyle='-')
+    ax.set_axisbelow(b=True)
     ms = [max(count_dict[t]) for t in types]
     m = max(ms)
-    n, bins, patches = ax.hist([count_dict[t] for t in types], m+1, density=True, histtype='step', label=types, cumulative=True, range=(0,15))
+    n, bins, patches = ax.hist([count_dict[t] for t in types], m+1, density=True, histtype='step', lw=1.5, label=[label_dict[t] for t in types], cumulative=True, range=(0,15))
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc=4, frameon=False)
     ax.set(xlabel='Maximum number of mismatch bases', ylabel='Frequency')
@@ -59,6 +70,8 @@ if __name__ == '__main__':
                     help='Count files')
     parser.add_argument('--prefix', type=str, default="",
                     help='String to add to outfile name')
+    parser.add_argument('--labels', type=str, default="",
+                    help='tsvfile of labels for plot')
     args = parser.parse_args()
 
     SMALL_SIZE = 16
@@ -83,4 +96,4 @@ if __name__ == '__main__':
         print("No files provided")
         quit()
 
-    plot_count_hist(files, args.prefix)
+    plot_count_hist(files, args.prefix, args.labels)
