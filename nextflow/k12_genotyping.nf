@@ -209,8 +209,8 @@ process simulate_new_ref {
     file("pandora_vcfref.fa") into reference_assemblies_pandora_full
     file("pandora_vcfref.fa") into reference_assemblies_pandora_30
     file("pandora_vcfref.fa") into reference_assemblies_pandora_illumina
-    set file("simulated_vars.vcf"), file("truth.fa") into true_variants
-    set file("simulated_vars.vcf"), file("truth.fa") into true_variants2
+    set file("simulated_vars.filtered.vcf"), file("truth.fa") into true_variants
+    set file("simulated_vars.filtered.vcf"), file("truth.fa") into true_variants2
 
     """
     seqtk seq -a ${truth_assembly} | awk '{print \$1;}' | cut -d "." -f1 > truth.fa

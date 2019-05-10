@@ -9,6 +9,7 @@ import pickle
 import math
 from scipy.optimize import least_squares
 import argparse
+import os.path
 
 def save_lols(lol, filepath):
     with open(filepath, "w", newline="") as f:
@@ -23,16 +24,18 @@ def load_lols(filepath):
             lol.append(row)
     return lol
 
-def check_matrix(matrix_file):
+def check_matrix(matrix_file, min_count=0, max_count=20000):
     matrix = pd.read_csv(matrix_file, sep='\t', header=0, index_col=0)
     num_genes = matrix.sum(axis=0)
     counts = []
+    bad_genomes = []
     for name,count in num_genes.iteritems():
         assert(count > 0)
-        if count < 1000:
+        if count < min_count or count > max_count:
             print(name, count)
+            bad_genomes.append(name)
         counts.append(count)    
-    return counts
+    return counts, bad_genomes
 
 def get_bin_boundaries(matrix_file, num_bins = 10):
     matrix = pd.read_csv(matrix_file, sep='\t', header=0, index_col=0)
@@ -48,10 +51,12 @@ def get_bin_boundaries(matrix_file, num_bins = 10):
             last_i = bin_id
     return boundaries
     
-def divide_local_graphs_by_frequency(matrix_file, num_bins = 10, genes_only=False):
+def divide_local_graphs_by_frequency(matrix_file, num_bins = 10, genes_only=False, bad_genomes=[]):
     matrix = pd.read_csv(matrix_file, sep='\t', header=0, index_col=0)
+    matrix.drop(bad_genomes, axis=1)
     num_samples = len(matrix.columns)
-    assert num_bins <= num_samples, "Number of bins %d > number of samples %d" %(num_bins, num_samples)
+    if num_bins > num_samples:
+        num_bins = num_samples
     bin_size = float(num_samples)/num_bins
     
     partition = []
@@ -69,7 +74,7 @@ def divide_local_graphs_by_frequency(matrix_file, num_bins = 10, genes_only=Fals
     
     return partition
 
-def get_counts_per_gene(vcf_file, max_allele_length=1):
+def get_counts_per_gene(vcf_file, max_allele_length=1, bad_genomes=[]):
     count_dict = {}
     vcf_reader = vcf.Reader(open(vcf_file, 'r'))
     for record in vcf_reader:
@@ -89,6 +94,8 @@ def get_counts_per_gene(vcf_file, max_allele_length=1):
 
         # collect counts on each allele from the samples
         for i,sample_record in enumerate(record.samples):
+            if vcf_reader.samples[i] in bad_genomes:
+                continue
             genotype = sample_record['GT']
             genotypes = genotype.split('/')
             called_alleles = set(genotypes)
@@ -104,6 +111,7 @@ def get_counts_per_gene(vcf_file, max_allele_length=1):
         if len(indexes[0]) > 1:
             j = np.random.randint(0,len(indexes[0]))
             index = indexes[0][j] 
+            assert counts[index] > 0
             count_dict[record.CHROM].append(counts[index])
     return count_dict
 
@@ -237,70 +245,104 @@ matrix_file = args.matrix
 vcf_file = args.vcf
 outdir=args.outdir
 
-gene_counts_per_sample = check_matrix(matrix_file)
-plot_hist([gene_counts_per_sample], xlabel="Number genes found", nbins=30, kde=True, outfile="%s/gene_counts_per_sample.png" %outdir)
-save_lols([gene_counts_per_sample], "%s/gene_counts_per_sample.csv" %args.outdir)
+if os.path.exists("%s/gene_counts_per_sample.csv" %args.outdir):
+    gene_counts_per_sample = load_lols("%s/gene_counts_per_sample.csv" %args.outdir)[0]
+    bad_genomes = load_lols("%s/gene_counts_per_sample.csv" %args.outdir)[1]
+else:
+    gene_counts_per_sample, bad_genomes = check_matrix(matrix_file, min_count=4000, max_count=6000)
+    plot_hist([gene_counts_per_sample], xlabel="Number genes found", nbins=30, kde=True, outfile="%s/gene_counts_per_sample.png" %outdir)
+    save_lols([gene_counts_per_sample, bad_genomes], "%s/gene_counts_per_sample.csv" %args.outdir)
 
-gene_partition = divide_local_graphs_by_frequency(matrix_file, 285, genes_only=True)
-plot_bar([len(p) for p in gene_partition], outfile="%s/gene_frequencies.png" %outdir)
-save_lols(gene_partition, "%s/gene_partition.csv" %args.outdir)
+if os.path.exists("%s/gene_partition.csv" %args.outdir):
+    gene_partition = load_lols("%s/gene_partition.csv" %args.outdir)
+else:
+    gene_partition = divide_local_graphs_by_frequency(matrix_file, 285, genes_only=True, bad_genomes=bad_genomes)
+    plot_bar([len(p) for p in gene_partition], outfile="%s/gene_frequencies.png" %outdir)
+    save_lols(gene_partition, "%s/gene_partition.csv" %args.outdir)
 
-count_dict = get_counts_per_gene(vcf_file, max_allele_length=1)
-save_obj(count_dict, "%s/count_dict.pkl" %outdir)
+if os.path.exists("%s/count_dict.pkl" %outdir):
+    count_dict = load_obj("%s/count_dict.pkl" %outdir)
+else:
+    count_dict = get_counts_per_gene(vcf_file, max_allele_length=1, bad_genomes=bad_genomes)
+    save_obj(count_dict, "%s/count_dict.pkl" %outdir)
 
-N = []
-K = []
-S = []
-y = []
+if not os.path.exists("%s/res_lsq.pkl" %outdir) or not os.path.exists("%s/res_l1.pkl" %outdir) or not os.path.exists("%s/res_hub.pkl" %outdir) or not os.path.exists("%s/res_log.pkl" %outdir) or not os.path.exists("%s/res_at.pkl" %outdir):
+    N = []
+    K = []
+    S = []
+    y = []
 
-n = len(gene_partition)
-for i,p in enumerate(gene_partition):
-    k = i+1
-    if i == 1 or i == n:
-        continue
-    
-    for gene in p:
-        if gene not in count_dict.keys():
+    n = len(gene_partition)
+    for i,p in enumerate(gene_partition):
+        k = i+1
+        if i == 1 or i == n:
             continue
-        for s in range(1,k):
-            j = sum([1 for c in count_dict[gene] if int(c) == s])
-            N.append(n)
-            K.append(k)
-            S.append(s)
-            y.append(j)
+    
+        for gene in p:
+            if gene not in count_dict.keys():
+                continue
+            for s in range(1,k):
+                j = sum([1 for c in count_dict[gene] if int(c) == s])
+                N.append(n)
+                K.append(k)
+                S.append(s)
+                y.append(j)
 
-x0 = [3.0,0.001]
+    x0 = [3.0,0.001]
 
-res_lsq = least_squares(fun3, x0, args=(N,K,S,y))
-print("Linear loss least squares (rho,theta2):", res_lsq.x)
-save_obj(res_lsq, "%s/res_lsq.pkl" %outdir)
-res_l1 = least_squares(fun3, x0, loss='soft_l1', args=(N,K,S,y))
-print("Soft L1 loss least squares (rho,theta2):",res_l1.x)
-save_obj(res_l1, "%s/res_l1.pkl" %outdir)
-res_hub = least_squares(fun3, x0, loss='huber', args=(N,K,S,y))
-print("Huber loss least squares (rho,theta2):",res_hub.x)
-save_obj(res_hub, "%s/res_hub.pkl" %outdir)
-res_log = least_squares(fun3, x0, loss='cauchy', args=(N,K,S,y))
-print("Cauchy (log) loss least squares (rho,theta2):",res_log.x)
-save_obj(res_log, "%s/res_log.pkl" %outdir)
-res_at = least_squares(fun3, x0, loss='arctan', args=(N,K,S,y))
-print("Arctan loss least squares (rho,theta2):",res_at.x)
-save_obj(res_at, "%s/res_at.pkl" %outdir)
+if os.path.exists("%s/res_lsq.pkl" %outdir):
+    res_lsq = load_obj("%s/res_lsq.pkl" %outdir)
+else:
+    res_lsq = least_squares(fun3, x0, args=(N,K,S,y))
+    print("Linear loss least squares (rho,theta2):", res_lsq.x)
+    save_obj(res_lsq, "%s/res_lsq.pkl" %outdir)
+
+if os.path.exists("%s/res_l1.pkl" %outdir):
+    res_l1 = load_obj("%s/res_l1.pkl" %outdir)
+else:
+    res_l1 = least_squares(fun3, x0, loss='soft_l1', args=(N,K,S,y))
+    print("Soft L1 loss least squares (rho,theta2):",res_l1.x)
+    save_obj(res_l1, "%s/res_l1.pkl" %outdir)
+
+if os.path.exists("%s/res_hub.pkl" %outdir):
+    res_hub = load_obj("%s/res_hub.pkl" %outdir)
+else:
+    res_hub = least_squares(fun3, x0, loss='huber', args=(N,K,S,y))
+    print("Huber loss least squares (rho,theta2):",res_hub.x)
+    save_obj(res_hub, "%s/res_hub.pkl" %outdir)
+
+if os.path.exists("%s/res_log.pkl" %outdir):
+    res_log = load_obj("%s/res_log.pkl" %outdir)
+else:
+    res_log = least_squares(fun3, x0, loss='cauchy', args=(N,K,S,y))
+    print("Cauchy (log) loss least squares (rho,theta2):",res_log.x)
+    save_obj(res_log, "%s/res_log.pkl" %outdir)
+
+if os.path.exists("%s/res_at.pkl" %outdir):
+    res_at = load_obj("%s/res_at.pkl" %outdir)
+else:
+    res_at = least_squares(fun3, x0, loss='arctan', args=(N,K,S,y))
+    print("Arctan loss least squares (rho,theta2):",res_at.x)
+    save_obj(res_at, "%s/res_at.pkl" %outdir)
 
 for i in [50,100,150,200,250]:
     fig, ax = plt.subplots()
     genes = gene_partition[i-1]
+    if len(genes) < 5:
+        continue
     spectrums = []
-    for s in range(1,k):
+    for s in range(1,i):
         spec = []
         for gene in genes:
             if gene not in count_dict.keys():
                 continue
             spec.append(sum([1 for c in count_dict[gene] if int(c) == s]))
+        print(i,s,spec)
         spectrums.append(spec)
     ax.violinplot(spectrums,showmeans=True)
-    ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency', xticklabels=[s for s in range(1,k)])
+    ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency', xticklabels=[s for s in range(1,i)])
     
+    n = len(gene_partition)
     y_lsq = [exp_sfs(*res_lsq.x, n, i, t) for t in range(1,i)]
     y_log = [exp_sfs(*res_log.x, n, i, t) for t in range(1,i)]
     y_l1 = [exp_sfs(*res_l1.x, n, i, t) for t in range(1,i)]
@@ -313,6 +355,6 @@ for i in [50,100,150,200,250]:
     plt.plot([t for t in range(1,i)], y_hub, label='huber loss')
     plt.plot([t for t in range(1,i)], y_at, label='arctan loss')
     
-    plt.ylim((0.5,10000))
+    #plt.ylim((0.5,10000))
     plt.legend()
-    plt.savefig("%s/site_frequency_spectrum_with_fits_%s.png" %(i,outdir), transparent=True)
+    plt.savefig("%s/site_frequency_spectrum_with_fits_%s.png" %(outdir, i), transparent=True)
