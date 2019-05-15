@@ -106,9 +106,9 @@ def get_counts_per_gene(vcf_file, max_allele_length=1, bad_genomes=[]):
                 assert(gt < len(counts))
                 counts[gt] += 1
         
-        # see if it's a segregating site, and if it is, flip a coin to decide the ancestral allele
+        # see if it's a called site, and if it is, flip a coin to decide the ancestral allele
         indexes = np.nonzero(counts)
-        if len(indexes[0]) > 1:
+        if len(indexes[0]) > 0:
             j = np.random.randint(0,len(indexes[0]))
             index = indexes[0][j] 
             assert counts[index] > 0
@@ -118,7 +118,7 @@ def get_counts_per_gene(vcf_file, max_allele_length=1, bad_genomes=[]):
 def plot_hist(partition, xlabel="Allele frequency", nbins=20, kde=False, b=[], outfile="allele_frequency_hist.png"):
     plt.rcParams['figure.figsize'] = 10,6
     plt.style.use('seaborn-deep')
-    sns.set_palette(sns.color_palette("Spectral", len(partition)))
+    #sns.set_palette(sns.color_palette("Spectral", len(partition)))
     
     fig, ax = plt.subplots()
     for i,p in enumerate(partition):

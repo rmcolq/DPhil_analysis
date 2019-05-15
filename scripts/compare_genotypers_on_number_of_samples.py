@@ -241,7 +241,8 @@ def compare_pair(pair, names, recall_flank):
     (num1, id1, zipped_truth1, sample_dir1, mask1, truth1) = pair[0]
     (num2, id2, zipped_truth2, sample_dir2, mask2, truth2) = pair[1]
     print("Run on sample pair", id1, id2)
-    run_dnadiff(truth1, truth2, id1 + "_" + id2)
+    if not os.path.isfile("tmp/dnadiff_%s_%s.snps" %(id1, id2)):
+        run_dnadiff(truth1, truth2, id1 + "_" + id2)
     pair_names = names[:]
     pairs = get_vcf_pairs(sample_dir1, sample_dir2)
     for run in pairs:

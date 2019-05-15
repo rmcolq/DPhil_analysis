@@ -5,6 +5,7 @@ params.num_samples = 15
 params.max_covg = 100
 params.k = 15
 params.w = 14
+params.min_cluster_size = 10
 
 params.help = false
 params.testing = false
@@ -27,6 +28,7 @@ if (params.help){
           --max_covg		INT	Max covg to use, default=100
           --testing             FLAG    Run in test mode on small data which requires less memory
           --illumina		FLAG	is data illumina
+          --min_cluster_size	INT	
           --final_outdir        DIRECTORY       Where to put final output files
           --max_forks           Not used
 
@@ -102,6 +104,7 @@ process pandora_compare_illumina {
   file read_tsv
   val w from params.w
   val k from params.k
+  val cluster_size from params.min_cluster_size
   
   output:
   file("pandora/pandora_multisample_genotyped.vcf") into vcfs
@@ -109,7 +112,7 @@ process pandora_compare_illumina {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
     
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k} --illumina
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k} --illumina --min_cluster_size ${cluster_size}
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi
@@ -134,6 +137,7 @@ process pandora_compare {
   file read_tsv
   val w from params.w
   val k from params.k
+  val cluster_size from params.min_cluster_size
   
   output:
   file("pandora/pandora_multisample_genotyped.vcf") into vcfs
@@ -141,7 +145,7 @@ process pandora_compare {
   file("pandora/pandora_multisample.vcf_ref.fa") into vcf_refs
     
   """
-  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k}
+  pandora compare -p ${prg} -r ${read_tsv} --genotype --max_covg ${params.max_covg} -w ${w} -k ${k} --min_cluster_size ${cluster_size}
   if [ ! -f pandora/pandora_multisample_genotyped.vcf ]; then
       exit 1
   fi  
@@ -152,6 +156,7 @@ process pandora_compare {
 }
 }
 
+vcfs.collectFile(name: final_outdir/'pandora_multisample_genotyped.vcf', keepHeader: true, skip: 12)
 vcf_refs.collectFile(name: final_outdir/'pandora_multisample.vcf_ref.fa')
 matrices.collectFile(name: final_outdir/'pandora_multisample.matrix', keepHeader:true)
 
