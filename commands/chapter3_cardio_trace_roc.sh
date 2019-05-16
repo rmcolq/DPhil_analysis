@@ -49,6 +49,18 @@ bsub.py 100 logs/compare_cardio_trace_roc_illumina_100 singularity exec /nfs/lei
 bsub.py 60 logs/compare_cardio_trace_roc_nanopore_30 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/090519/nanopore_30 --genotype --max_covg 30 --min_cluster_size 5
 bsub.py 100 logs/compare_cardio_trace_roc_nanopore_100 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/090519/nanopore_100 --genotype --min_cluster_size 5
 
+bsub.py 60 logs/compare_cardio_trace_roc_illumina_30 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_illumina.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/160519/illumina_30 --genotype --max_covg 30 --illumina -w 19 -k 31
+bsub.py 100 logs/compare_cardio_trace_roc_illumina_100 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_illumina.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/160519/illumina_100 --genotype --illumina -w 19 -k 31
+bsub.py 60 logs/compare_cardio_trace_roc_nanopore_30 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/160519/nanopore_30 --genotype --max_covg 30
+bsub.py 100 logs/compare_cardio_trace_roc_nanopore_100 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_trace_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/4_way/160519/nanopore_100 --genotype
+
+# 2 cardio only
+cd /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/
+bsub.py 30 logs/compare_cardio_only_roc_illumina_30 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_read_index_illumina.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/illumina_30 --genotype --max_covg 30 --illumina -w 19 -k 31
+bsub.py 50 logs/compare_cardio_only_roc_illumina_100 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_read_index_illumina.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/illumina_100 --genotype --illumina -w 19 -k 31
+bsub.py 30 logs/compare_cardio_only_roc_nanopore_30 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/nanopore_30 --genotype --max_covg 30
+bsub.py 50 logs/compare_cardio_only_roc_nanopore_100 singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k15.w14/ecoli_pangenome_PRG_050319.fa -r /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/cardio_read_index_nanopore.tsv -o /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/nanopore_100 --genotype
+
 #--genotyping_error_rate 1 if doesnt work?
 
 ## Create single sample vcf and ref.fa files for each sample
@@ -98,11 +110,37 @@ bsub.py 4.0 3_way singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_ana
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way/140519
 bsub.py 6.0 4_way singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-Singularity_recipes-minos.img python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/compare_genotypers_on_number_of_samples.py --sample_tsv ../genotyped_samples.tsv -t 8
 
+vim /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/labels.tsv
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way
+python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way
+python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way
+python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt
 
+# and another way around
+mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way_other
+mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way_other
+mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way_other
+vim /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way_other/genotyped_samples.tsv
+vim /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way_other/genotyped_samples.tsv
+vim /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way_other/genotyped_samples.tsv
 
+#mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way_other/140519
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way_other/140519
+bsub.py 4.0 2_way singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-Singularity_recipes-minos.img python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/compare_genotypers_on_number_of_samples.py --sample_tsv ../genotyped_samples.tsv -t 8
 
+#mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way_other/140519
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way_other/140519
+bsub.py 4.0 3_way singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-Singularity_recipes-minos.img python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/compare_genotypers_on_number_of_samples.py --sample_tsv ../genotyped_samples.tsv -t 8
 
+#mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way_other/140519
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way_other/140519
+bsub.py 6.0 4_way singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-Singularity_recipes-minos.img python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/compare_genotypers_on_number_of_samples.py --sample_tsv ../genotyped_samples.tsv -t 8
 
-
-
-python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.06 --legend_outside &> log_plot_roc.txt
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/4_way_other/140519
+python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt
+#cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/3_way_other/140519
+#python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/2_way_other/140519
+python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/plot_roc.py --y_label "Pairwise SNP Recall" --y_min 0.1 --x_max 0.04 --legend_outside --labels ../../labels.tsv &> log_plot_roc.txt

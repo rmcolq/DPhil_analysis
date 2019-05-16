@@ -23,7 +23,7 @@ bsub.py 125 compare singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_a
 
 mkdir -p /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/140519_illumina
 cd /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/140519_illumina
-bsub.py 127 compare singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -w 19 -k 31 -r /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/illumina_samples_random30.tsv --genotype --max_covg 30 --illumina
+bsub.py 125 compare singularity exec /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/singularity/rmcolq-pandora-pandora.img pandora compare -p /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -w 19 -k 31 -r /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/illumina_samples_random30.tsv --genotype --max_covg 30 --illumina
 
 mkdir -p /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/140519_nanopore
 cd /hps/nobackup/iqbal/rmcolq/projects/pandora_compare/analysis/cardio_15/140519_nanopore

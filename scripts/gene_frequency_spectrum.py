@@ -241,39 +241,40 @@ N = [n for i in range(1,n+1)]
 t = [i for i in range(1,n+1)]
 y = [len(p) for p in gene_partition]
 x0 = [1000.0,1.0,100.0]
+bounds = [0,np.inf]
 
 if os.path.exists("%s/res_lsq.pkl" %outdir):
     res_lsq = load_obj("%s/res_lsq.pkl" %outdir)
 else:
-    res_lsq = least_squares(fun, x0, args=(t,N,y))
+    res_lsq = least_squares(fun, x0, bounds=bounds, args=(t,N,y))
     print("Linea loss least squares (theta1,rho,gc):",res_lsq.x)
     save_obj(res_lsq, "%s/res_lsq.pkl" %outdir)
 
 if os.path.exists("%s/res_l1.pkl" %outdir):
     res_l1 = load_obj("%s/res_l1.pkl" %outdir)
 else:
-    res_l1 = least_squares(fun, x0, loss='soft_l1', args=(t,N,y))
+    res_l1 = least_squares(fun, x0, bounds=bounds, loss='soft_l1', args=(t,N,y))
     print("Soft L1 loss least squares (theta1,rho,gc):",res_l1.x)
     save_obj(res_l1, "%s/res_l1.pkl" %outdir)
 
 if os.path.exists("%s/res_hub.pkl" %outdir):
     res_hub = load_obj("%s/res_hub.pkl" %outdir)
 else:
-    res_hub = least_squares(fun, x0, loss='huber', args=(t,N,y))
+    res_hub = least_squares(fun, x0, bounds=bounds, loss='huber', args=(t,N,y))
     print("Huber loss least squares (theta1,rho,gc):",res_hub.x)
     save_obj(res_hub, "%s/res_hub.pkl" %outdir)
 
 if os.path.exists("%s/res_log.pkl" %outdir):
     res_log = load_obj("%s/res_log.pkl" %outdir)
 else:
-    res_log = least_squares(fun, x0, loss='cauchy', args=(t,N,y))
+    res_log = least_squares(fun, x0, bounds=bounds, loss='cauchy', args=(t,N,y))
     print("Cauchy (log) loss least squares (theta1,rho,gc):",res_log.x)
     save_obj(res_log, "%s/res_log.pkl" %outdir)
 
 if os.path.exists("%s/res_at.pkl" %outdir):
     res_at = load_obj("%s/res_at.pkl" %outdir)
 else:
-    res_at = least_squares(fun, x0, loss='arctan', args=(t,N,y))
+    res_at = least_squares(fun, x0, bounds=bounds, loss='arctan', args=(t,N,y))
     print("Arctan loss least squares (theta1,rho,gc):",res_at.x)
     save_obj(res_at, "%s/res_at.pkl" %outdir)
 

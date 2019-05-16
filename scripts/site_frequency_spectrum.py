@@ -271,76 +271,82 @@ if not os.path.exists("%s/res_lsq.pkl" %outdir) or not os.path.exists("%s/res_l1
     K = []
     S = []
     y = []
+    avg_spectrum_dict = {}
 
     n = len(gene_partition)
     for i,p in enumerate(gene_partition):
         k = i+1
-        if i == 1 or i == n:
-            continue
+        j = [0 for s in range(1,k)]
+        avg_spectrum_dict[k] = []
+        #if i == 1 or i == n:
+        #    continue
     
         for gene in p:
             if gene not in count_dict.keys():
                 continue
             for s in range(1,k):
-                j = sum([1 for c in count_dict[gene] if int(c) == s])
-                N.append(n)
-                K.append(k)
-                S.append(s)
-                y.append(j)
+                j[s-1] += sum([1 for c in count_dict[gene] if int(c) == s])
+        for s in range(1,k):
+            N.append(n)
+            K.append(k)
+            S.append(s)
+            if len(p) > 0:
+                avg_num_sites_at_frequency = float(j[s-1])/float(len(p))
+            else:
+                avg_num_sites_at_frequency = 0
+            y.append(avg_num_sites_at_frequency)
+            avg_spectrum_dict[k].append(avg_num_sites_at_frequency)
 
     x0 = [3.0,0.001]
+    bounds = [0,np.inf]
+    save_obj(avg_spectrum_dict, "%s/avg_spectrum_dict.pkl" %outdir)
 
 if os.path.exists("%s/res_lsq.pkl" %outdir):
     res_lsq = load_obj("%s/res_lsq.pkl" %outdir)
 else:
-    res_lsq = least_squares(fun3, x0, args=(N,K,S,y))
+    res_lsq = least_squares(fun3, x0, bounds=bounds, args=(N,K,S,y))
     print("Linear loss least squares (rho,theta2):", res_lsq.x)
     save_obj(res_lsq, "%s/res_lsq.pkl" %outdir)
 
 if os.path.exists("%s/res_l1.pkl" %outdir):
     res_l1 = load_obj("%s/res_l1.pkl" %outdir)
 else:
-    res_l1 = least_squares(fun3, x0, loss='soft_l1', args=(N,K,S,y))
+    res_l1 = least_squares(fun3, x0, bounds=bounds, loss='soft_l1', args=(N,K,S,y))
     print("Soft L1 loss least squares (rho,theta2):",res_l1.x)
     save_obj(res_l1, "%s/res_l1.pkl" %outdir)
 
 if os.path.exists("%s/res_hub.pkl" %outdir):
     res_hub = load_obj("%s/res_hub.pkl" %outdir)
 else:
-    res_hub = least_squares(fun3, x0, loss='huber', args=(N,K,S,y))
+    res_hub = least_squares(fun3, x0, bounds=bounds, loss='huber', args=(N,K,S,y))
     print("Huber loss least squares (rho,theta2):",res_hub.x)
     save_obj(res_hub, "%s/res_hub.pkl" %outdir)
 
 if os.path.exists("%s/res_log.pkl" %outdir):
     res_log = load_obj("%s/res_log.pkl" %outdir)
 else:
-    res_log = least_squares(fun3, x0, loss='cauchy', args=(N,K,S,y))
+    res_log = least_squares(fun3, x0, bounds=bounds, loss='cauchy', args=(N,K,S,y))
     print("Cauchy (log) loss least squares (rho,theta2):",res_log.x)
     save_obj(res_log, "%s/res_log.pkl" %outdir)
 
 if os.path.exists("%s/res_at.pkl" %outdir):
     res_at = load_obj("%s/res_at.pkl" %outdir)
 else:
-    res_at = least_squares(fun3, x0, loss='arctan', args=(N,K,S,y))
+    res_at = least_squares(fun3, x0, bounds=bounds, loss='arctan', args=(N,K,S,y))
     print("Arctan loss least squares (rho,theta2):",res_at.x)
     save_obj(res_at, "%s/res_at.pkl" %outdir)
 
-for i in [50,100,150,200,250]:
+if os.path.exists("%s/avg_spectrum_dict.pkl" %outdir):
+    avg_spectrum_dict = load_obj("%s/avg_spectrum_dict.pkl" %outdir)
+
+for i in range(1,285):
     fig, ax = plt.subplots()
     genes = gene_partition[i-1]
     if len(genes) < 5:
         continue
-    spectrums = []
-    for s in range(1,i):
-        spec = []
-        for gene in genes:
-            if gene not in count_dict.keys():
-                continue
-            spec.append(sum([1 for c in count_dict[gene] if int(c) == s]))
-        print(i,s,spec)
-        spectrums.append(spec)
-    ax.violinplot(spectrums,showmeans=True)
-    ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency', xticklabels=[s for s in range(1,i)])
+
+    ax.scatter([t for t in range(1,i)],avg_spectrum_dict[i], c='black')
+    ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency')
     
     n = len(gene_partition)
     y_lsq = [exp_sfs(*res_lsq.x, n, i, t) for t in range(1,i)]

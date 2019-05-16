@@ -12,13 +12,23 @@ import matplotlib.colors
 
 def load_dfs(directory):
     dfs = []
+    pandora_nano = []
+    pandora_ill = []
     files = glob.glob("%s/*.csv" %directory)
     files.sort()
     for f in files:
         df = pd.read_csv(f, index_col=0)
         print(df)
-        dfs.append(df)
-    return dfs
+        if "nano" in f:
+            pandora_nano.append(df)
+        elif "ill" in f:
+            pandora_ill.append(df)
+        else:
+            dfs.append(df)
+    print(len(pandora_nano), len(pandora_ill), len(dfs))
+    pandora_nano.extend(pandora_ill)
+    pandora_nano.extend(dfs)
+    return pandora_nano
 
 def plot_graphs(items, x_max, y_label, y_min, legend_outside, label_file):
     # Load labels if we have them
@@ -58,7 +68,10 @@ def plot_graphs(items, x_max, y_label, y_min, legend_outside, label_file):
 
         # Make a scatter plot
         for x in items:
-            plot_label = x['name'].values[0]
+            try:
+                plot_label = x['name'].values[0]
+            except:
+                continue
             if x['name'].values[0] in label_dict.keys():
                 plot_label = label_dict[plot_label]
             if len(x['name'].values) > 0 and max(x['yscat'].values) > y_min:

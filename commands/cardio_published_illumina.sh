@@ -28,5 +28,4 @@ done
 
 mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/070519
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/070519
-bsub.py 3 pandora_compare_in_chunks_070519 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/pandora_compare_in_chunks.nf --pangenome_prg /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa -w 19 -k 31 --read_index /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_45 --chunk_size 2000 --num_samples 266 --max_covg 50 --illumina --min_cluster_size 5 -w pandora_work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config
-
+bsub.py 3 pandora_compare_in_chunks_070519 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/pandora_compare_in_chunks.nf --pangenome_prg /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa --w 19 --k 31 --read_index /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_45 --chunk_size 2000 --num_samples 266 --max_covg 50 --illumina --min_cluster_size 5 -w pandora_work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
