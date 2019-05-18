@@ -26,6 +26,7 @@ def find_binary(program, allow_fail=False):
     return which_output
 
 def syscall(command, allow_fail=False):
+    print(command)
     completed_process = subprocess.run(command, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE, universal_newlines=True)
     if (not allow_fail) and completed_process.returncode != 0:
         print('Error running this command:', command, file=sys.stderr)
@@ -276,7 +277,7 @@ def run_individual(num1, id1, zipped_truth1, sample_dir1, mask1, truth1, precisi
         name, vcf_ref, vcf1 = run
         print("run individual ", name, vcf1)
         indiv_name = name + "_" + id1
-        if len(glob.glob("tmp/individual." + indiv_name + "*")) == 0:
+        if len(glob.glob("tmp/individual." + indiv_name + "*.stats.tsv")) == 0:
             run_individual_minos(truth1, vcf1, vcf_ref, indiv_name, precision_flank, mask1)
             print("append stats")
             append_stats_x(name, indiv_name)
@@ -306,21 +307,32 @@ if not os.path.exists('tmp'):
 # y
 pairs = [[[list(p[0]), list(p[1])], names, args.recall_flank] for p in itertools.combinations(index.itertuples(), 2)]
 print(pairs)
-with Pool(args.num_threads) as pool:
-    r = pool.starmap(compare_pair, pairs) 
+try:
+    with Pool(args.num_threads) as pool:
+        r = pool.starmap(compare_pair, pairs) 
+except:
+    for p in pairs:
+        (pair, names, recall_flank) = p
+        compare_pair(pair, names, recall_flank)
+
 
 # x
 samples = [list(i) for i in index.itertuples()]
 for s in samples:
     s.append(args.precision_flank)
 print(samples)
-with Pool(args.num_threads) as pool:
-    r = pool.starmap(run_individual, samples)
+try:
+    with Pool(args.num_threads) as pool:
+        r = pool.starmap(run_individual, samples)
+except:
+    for s in samples:
+        (num1, id1, zipped_truth1, sample_dir1, mask1, truth1, precision_flank) = s
+        run_individual(num1, id1, zipped_truth1, sample_dir1, mask1, truth1, precision_flank)
 
 for truth in index['unzipped_truth']:
     files = glob.glob(truth + ".*")
-    for f in files:
-        os.unlink(f)
+    #for f in files:
+    #    os.unlink(f)
     
 for name in names:
     print("Try to get df for", name)

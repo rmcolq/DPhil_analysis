@@ -217,7 +217,7 @@ if (params.nanopore_reads) {
 	  'shub://rmcolq/pandora:pandora'
 	}	
 
-        publishDir final_outdir, mode: 'copy', overwrite: false
+        publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file nanopore_reads
@@ -356,7 +356,7 @@ if (params.nanopore_reads) {
         cpus 16
 	maxForks 5
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+	publishDir final_outdir, mode: 'copy', overwrite: true
         
         input:
         file nanopore_reads 
@@ -419,7 +419,7 @@ if (params.illumina_reads_1 && params.illumina_reads_2) {
 	cpus 8
         maxForks 5
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+	publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -451,7 +451,7 @@ else if (params.illumina_reads_1) {
         }
 	cpus 8
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+	publishDir final_outdir, mode: 'copy', overwrite: true
         
         input:
         file reference_assembly from reference_assemblies_snippy
@@ -480,7 +480,7 @@ if (params.illumina_reads_1) {
           'shub://rmcolq/pandora:pandora'
         }
 
-	publishDir final_outdir, mode: 'copy', overwrite: false
+	publishDir final_outdir, mode: 'copy', overwrite: true
 
         input:
         file illumina_reads
