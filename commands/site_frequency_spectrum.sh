@@ -40,7 +40,7 @@ bsub.py 10 sfs python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/script
 
 mkdir /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/site_frequency_spectrum/180519
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/site_frequency_spectrum/180519
-mkdir gfs
-bsub.py 10 gfs python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/gene_frequency_spectrum.py --matrix /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample.matrix --vcf /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample_genotyped.vcf --outdir gfs
-mkdir sfs
-bsub.py 10 sfs python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/site_frequency_spectrum.py --matrix /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample.matrix --vcf /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample_genotyped.vcf --outdir sfs
+#mkdir gfs
+#bsub.py 10 gfs python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/gene_frequency_spectrum.py --matrix /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample.matrix --vcf /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample_genotyped.vcf --outdir gfs
+#mkdir sfs
+bsub.py 10 sfs_play python3 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/site_frequency_spectrum.py --matrix /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample.matrix --vcf /hps/nobackup2/iqbal/projects/pandora/klebs/holt_gastro/140519/pandora_multisample_genotyped.vcf --outdir sfs

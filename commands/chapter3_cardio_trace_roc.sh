@@ -47,7 +47,7 @@ bsub.py 3.0 genotype_H151080744 nextflow run /nfs/leia/research/iqbal/rmcolq/git
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/CFT073
 bsub.py 3.0 genotype_CFT073 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/snippy_nanopolish_genotype.nf --reference_directory /nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/4_way_chosen/ --pipeline_root /nfs/leia/research/iqbal/rmcolq/git/compare_genotypers/nextflow/ -w /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/CFT073/work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config --illumina_reads_1 /nfs/leia/research/iqbal/rmcolq/data/trace/SRX5287344.fastq -resume
 
-mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/K12_MG1655
+#mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/K12_MG1655
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/K12_MG1655
 bsub.py 3.0 genotype_K12_MG1655 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/snippy_nanopolish_genotype.nf --reference_directory /nfs/leia/research/iqbal/rmcolq/data/references/Escherichia_coli/refseq/4_way_chosen/ --pipeline_root /nfs/leia/research/iqbal/rmcolq/git/compare_genotypers/nextflow/ -w /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/genotyping/K12_MG1655/work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config --illumina_reads_1 /nfs/leia/research/iqbal/rmcolq/data/loman_k12/Ecoli_S1_L001_R1_001.100x.fastq --raw_fast5s /hps/nobackup/iqbal/mbhall/Pandora_variation/Data/Loman_K12/reads/ --albacore_summary /hps/nobackup/iqbal/mbhall/Pandora_variation/Data/Loman_K12/logs/sequencing_summary.txt --nanopore_reads /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/data/lomank12/loman_k12_pass_porechop.100x.fq -resume 
 
@@ -107,6 +107,14 @@ less /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare
 cp /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample.vcf_ref.fa /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H131800734/pandora_genotyped_$run.ref.fa
 cp /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample.vcf_ref.fa /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H151080744/pandora_genotyped_$run.ref.fa
 done
+
+#for run in illumina_100_gt1 nanopore_100_gt1
+#do
+#less /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample_genotyped.vcf | cut -f1-9,10 > /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H131800734/pandora_genotyped_$run.vcf
+#less /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample_genotyped.vcf | cut -f1-9,11 > /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H151080744/pandora_genotyped_$run.vcf
+#cp /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample.vcf_ref.fa /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H131800734/pandora_genotyped_$run.ref.fa
+#cp /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/2_cardio/160519/$run/pandora_multisample.vcf_ref.fa /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_roc/genotyping/H151080744/pandora_genotyped_$run.ref.fa
+#done
 
 ## make bed of bad regions
 mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/cardio_trace_roc/truths
