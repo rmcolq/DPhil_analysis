@@ -24,13 +24,16 @@ def load_lols(filepath):
             lol.append(row)
     return lol
 
-def check_matrix(matrix_file, min_count=0, max_count=20000):
+def check_matrix(matrix_file, genes_only=False, min_count=0, max_count=20000):
     matrix = pd.read_csv(matrix_file, sep='\t', header=0, index_col=0)
+    if genes_only:
+        igr = [n for n in list(matrix.index) if n.startswith("Cluster_")]
+        matrix = matrix.drop(igr, axis=0)
     num_genes = matrix.sum(axis=0)
     counts = []
     bad_genomes = []
     for name,count in num_genes.iteritems():
-        assert(count > 0)
+        assert(count >= 0)
         if count < min_count or count > max_count:
             print(name, count)
             bad_genomes.append(name)
@@ -53,8 +56,13 @@ def get_bin_boundaries(matrix_file, num_bins = 10):
     
 def divide_local_graphs_by_frequency(matrix_file, num_bins = 10, genes_only=False, bad_genomes=[]):
     matrix = pd.read_csv(matrix_file, sep='\t', header=0, index_col=0)
-    matrix.drop(bad_genomes, axis=1)
+    if genes_only:
+        igr = [n for n in list(matrix.index) if n.startswith("Cluster_")]
+        matrix = matrix.drop(igr, axis=0)
+    matrix = matrix.drop(bad_genomes, axis=1)
+    print("Dividing local graphs by frequency, excluding", str(len(bad_genomes)), "bad genomes")
     num_samples = len(matrix.columns)
+    print("Working with", str(num_samples), "samples")
     if num_bins > num_samples:
         num_bins = num_samples
     bin_size = float(num_samples)/num_bins
@@ -65,9 +73,7 @@ def divide_local_graphs_by_frequency(matrix_file, num_bins = 10, genes_only=Fals
         
     frequencies = matrix.sum(axis=1)
     for name,count in frequencies.iteritems():
-        if genes_only and name.startswith("Cluster_"):
-            continue
-        assert(count > 0)
+        assert(count >= 0)
         bin_id = math.ceil(count/bin_size) - 1
         assert bin_id < num_bins
         partition[bin_id].append(name)
@@ -108,11 +114,13 @@ def get_counts_per_gene(vcf_file, max_allele_length=1, bad_genomes=[]):
         
         # see if it's a called site, and if it is, flip a coin to decide the ancestral allele
         indexes = np.nonzero(counts)
-        if len(indexes[0]) > 0:
-            j = np.random.randint(0,len(indexes[0]))
-            index = indexes[0][j] 
-            assert counts[index] > 0
-            count_dict[record.CHROM].append(counts[index])
+        if len(indexes[0]) == 2:
+            #j = np.random.randint(0,len(indexes[0]))
+            #index = indexes[0][j] 
+            #assert counts[index] > 0
+            #count_dict[record.CHROM].append(counts[index])
+            c = min(counts[indexes[0][0]], counts[indexes[0][1]])
+            count_dict[record.CHROM].append(c)
     return count_dict
 
 def plot_hist(partition, xlabel="Allele frequency", nbins=20, kde=False, b=[], outfile="allele_frequency_hist.png"):
@@ -245,11 +253,14 @@ matrix_file = args.matrix
 vcf_file = args.vcf
 outdir=args.outdir
 
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
+
 if os.path.exists("%s/gene_counts_per_sample.csv" %args.outdir):
     gene_counts_per_sample = load_lols("%s/gene_counts_per_sample.csv" %args.outdir)[0]
     bad_genomes = load_lols("%s/gene_counts_per_sample.csv" %args.outdir)[1]
 else:
-    gene_counts_per_sample, bad_genomes = check_matrix(matrix_file, min_count=4000, max_count=6000)
+    gene_counts_per_sample, bad_genomes = check_matrix(matrix_file, genes_only=True, min_count=3500, max_count=6000)
     plot_hist([gene_counts_per_sample], xlabel="Number genes found", nbins=30, kde=True, outfile="%s/gene_counts_per_sample.png" %outdir)
     save_lols([gene_counts_per_sample, bad_genomes], "%s/gene_counts_per_sample.csv" %args.outdir)
 
@@ -339,7 +350,7 @@ else:
 if os.path.exists("%s/avg_spectrum_dict.pkl" %outdir):
     avg_spectrum_dict = load_obj("%s/avg_spectrum_dict.pkl" %outdir)
 
-for i in range(1,285):
+for i in range(1,len(gene_partition)+1):
     fig, ax = plt.subplots()
     genes = gene_partition[i-1]
     if len(genes) < 5:

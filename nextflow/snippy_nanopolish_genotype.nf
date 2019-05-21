@@ -162,15 +162,25 @@ if (params.nanopore_reads) {
 	  -q dam,dcm \
           --ploidy 1
 
-	v=\$(head -n1 ${reference_assembly})
-        ref_id=\${v:1:\${#v}}
+        echo "Nanopolish run successful"
 
-	cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_\$ref_id.vcf
-	for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
-	do
-	cat \$f | grep -v "#" >> nanopolish_\$ref_id.vcf
-	done
-	cp ${reference_assembly} nanopolish_\$ref_id.ref.fa
+        wait(10)
+
+        v=\$(head -n1 ${reference_assembly})
+        ref_id=\${v:1:\${#v}}
+        echo "Found id \$ref_id"
+
+        cp \$(ls nanopolish.results/vcf/nanopolish.*.vcf | head -n1) nanopolish_\$ref_id.vcf
+        for f in \$(ls nanopolish.results/vcf/nanopolish.*.vcf | tail -n+2)
+        do
+        cat \$f | grep -v "#" >> nanopolish_\$ref_id.vcf
+        done
+        echo "Combined output files"
+
+        cp ${reference_assembly} nanopolish_\$ref_id.ref.fa
+        echo "Copied ref assembly"
+
+        echo "Finish"
         """
     }
 }
