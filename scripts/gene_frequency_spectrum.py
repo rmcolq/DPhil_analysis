@@ -104,7 +104,7 @@ def plot_hist(partition, xlabel="Allele frequency", nbins=20, kde=False, b=[], o
     ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel=xlabel, ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
 
 def plot_hist2(partition, xlabel="Allele frequency", nbins=20, b=[], outfile="allele_frequency_hist2.png"):
     plt.rcParams['figure.figsize'] = 10,6
@@ -127,7 +127,7 @@ def plot_hist2(partition, xlabel="Allele frequency", nbins=20, b=[], outfile="al
         ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel=xlabel, ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
     
 def plot_bar(partition, outfile="."):
     plt.rcParams['figure.figsize'] = 10,6
@@ -139,7 +139,7 @@ def plot_bar(partition, outfile="."):
     #ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel="Gene count", ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
     
 def save_obj(obj, filepath):
     with open(filepath, 'wb') as f:
@@ -184,6 +184,18 @@ parser.add_argument('--vcf', type=str,
 parser.add_argument('--outdir', type=str,
                     help='Out directory')
 args = parser.parse_args()
+
+SMALL_SIZE = 16
+MEDIUM_SIZE = 24
+BIGGER_SIZE = 30
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 matrix_file = args.matrix
 vcf_file = args.vcf
@@ -267,4 +279,4 @@ plt.xlabel("t")
 plt.ylabel("y")
 plt.ylim((0.5,10000))
 plt.legend()
-plt.savefig("%s/gene_frequency_spectrum_with_fits.png" %outdir, transparent=True)
+plt.savefig("%s/gene_frequency_spectrum_with_fits.png" %outdir, transparent=True, bbox_inches='tight')

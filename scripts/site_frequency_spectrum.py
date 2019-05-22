@@ -147,7 +147,7 @@ def plot_hist(partition, xlabel="Allele frequency", nbins=20, kde=False, b=[], o
     ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel=xlabel, ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
 
 def plot_hist2(partition, xlabel="Allele frequency", nbins=20, b=[], outfile="allele_frequency_hist2.png"):
     plt.rcParams['figure.figsize'] = 10,6
@@ -170,7 +170,7 @@ def plot_hist2(partition, xlabel="Allele frequency", nbins=20, b=[], outfile="al
         ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel=xlabel, ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
     
 def plot_bar(partition, outfile="."):
     plt.rcParams['figure.figsize'] = 10,6
@@ -182,7 +182,7 @@ def plot_bar(partition, outfile="."):
     #ax.legend(handles, labels)
     #plt.legend(labels=types)
     ax.set(xlabel="Gene count", ylabel='Frequency')
-    plt.savefig(outfile, transparent=True)
+    plt.savefig(outfile, transparent=True, bbox_inches='tight')
     
 def save_obj(obj, filepath):
     with open(filepath, 'wb') as f:
@@ -225,6 +225,13 @@ def exp_sfs(rho,theta2,n,k,s):
         r *= t
     return r
 
+def exp_sfs_pair(rho,theta2,n,k,s):
+    assert s < k
+    if float(s) == float(k)/2:
+        return exp_sfs(rho,theta2,n,k,s)
+    else:
+        return exp_sfs(rho,theta2,n,k,s) + exp_sfs(rho,theta2,n,k,k-s)
+
 def fun3(x,N,K,S,y):
     assert(len(N) == len(K))
     assert(len(K) == len(S))
@@ -233,7 +240,7 @@ def fun3(x,N,K,S,y):
     for i in range(len(y)):
         res = 0
         try:
-            res = y[i] - exp_sfs(x[0],x[1],N[i],K[i],S[i])
+            res = y[i] - exp_sfs_pair(x[0],x[1],N[i],K[i],S[i])
         except:
             print(i,x[0],x[1],N[i],K[i],S[i],y[i])
         r.append(res)
@@ -248,6 +255,18 @@ parser.add_argument('--vcf', type=str,
 parser.add_argument('--outdir', type=str,
                     help='Out directory')
 args = parser.parse_args()
+
+SMALL_SIZE = 16
+MEDIUM_SIZE = 24
+BIGGER_SIZE = 30
+
+plt.rc('font', size=SMALL_SIZE)          # controls default text sizes
+plt.rc('axes', titlesize=SMALL_SIZE)     # fontsize of the axes title
+plt.rc('axes', labelsize=MEDIUM_SIZE)    # fontsize of the x and y labels
+plt.rc('xtick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('ytick', labelsize=SMALL_SIZE)    # fontsize of the tick labels
+plt.rc('legend', fontsize=SMALL_SIZE)    # legend fontsize
+plt.rc('figure', titlesize=BIGGER_SIZE)  # fontsize of the figure title
 
 matrix_file = args.matrix
 vcf_file = args.vcf
@@ -287,17 +306,18 @@ if not os.path.exists("%s/res_lsq.pkl" %outdir) or not os.path.exists("%s/res_l1
     n = len(gene_partition)
     for i,p in enumerate(gene_partition):
         k = i+1
-        j = [0 for s in range(1,k)]
+        half_k = int(k/2) + 1
+        j = [0 for s in range(1,half_k)]
         avg_spectrum_dict[k] = []
-        #if i == 1 or i == n:
-        #    continue
+        if i == 1 or i == n:
+            continue
     
         for gene in p:
             if gene not in count_dict.keys():
                 continue
-            for s in range(1,k):
-                j[s-1] += sum([1 for c in count_dict[gene] if int(c) == s])
-        for s in range(1,k):
+            for s in range(1,half_k):
+                j[s-1] += sum([1 for c in count_dict[gene] if int(c) == s or int(c) == k-s])
+        for s in range(1,half_k):
             N.append(n)
             K.append(k)
             S.append(s)
@@ -350,28 +370,30 @@ else:
 if os.path.exists("%s/avg_spectrum_dict.pkl" %outdir):
     avg_spectrum_dict = load_obj("%s/avg_spectrum_dict.pkl" %outdir)
 
-for i in range(1,len(gene_partition)+1):
+for i in range(3,len(gene_partition)):
     fig, ax = plt.subplots()
     genes = gene_partition[i-1]
     if len(genes) < 5:
         continue
 
-    ax.scatter([t for t in range(1,i)],avg_spectrum_dict[i], c='black')
+    half_k = int(i/2) + 1
+    #print(i,half_k, [t for t in range(1,half_k)], avg_spectrum_dict[i])
+    ax.scatter([t for t in range(1,half_k)],avg_spectrum_dict[i], c='black')
     ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency')
     
     n = len(gene_partition)
-    y_lsq = [exp_sfs(*res_lsq.x, n, i, t) for t in range(1,i)]
-    y_log = [exp_sfs(*res_log.x, n, i, t) for t in range(1,i)]
-    y_l1 = [exp_sfs(*res_l1.x, n, i, t) for t in range(1,i)]
-    y_hub = [exp_sfs(*res_hub.x, n, i, t) for t in range(1,i)]
-    y_at = [exp_sfs(*res_at.x, n, i, t) for t in range(1,i)]
+    y_lsq = [exp_sfs(*res_lsq.x, n, i, t) for t in range(1,half_k)]
+    y_log = [exp_sfs(*res_log.x, n, i, t) for t in range(1,half_k)]
+    y_l1 = [exp_sfs(*res_l1.x, n, i, t) for t in range(1,half_k)]
+    y_hub = [exp_sfs(*res_hub.x, n, i, t) for t in range(1,half_k)]
+    y_at = [exp_sfs(*res_at.x, n, i, t) for t in range(1,half_k)]
     
-    plt.plot([t for t in range(1,i)], y_lsq, label='linear loss')
-    plt.plot([t for t in range(1,i)], y_log, label='cauchy loss')
-    plt.plot([t for t in range(1,i)], y_l1, label='soft_l1 loss')
-    plt.plot([t for t in range(1,i)], y_hub, label='huber loss')
-    plt.plot([t for t in range(1,i)], y_at, label='arctan loss')
+    plt.plot([t for t in range(1,half_k)], y_lsq, label='linear loss')
+    #plt.plot([t for t in range(1,half_k)], y_log, label='cauchy loss')
+    #plt.plot([t for t in range(1,half_k)], y_l1, label='soft_l1 loss')
+    #plt.plot([t for t in range(1,half_k)], y_hub, label='huber loss')
+    #plt.plot([t for t in range(1,half_k)], y_at, label='arctan loss')
     
     #plt.ylim((0.5,10000))
-    plt.legend()
-    plt.savefig("%s/site_frequency_spectrum_with_fits_%s.png" %(outdir, i), transparent=True)
+    #plt.legend()
+    plt.savefig("%s/site_frequency_spectrum_with_fits_%s.png" %(outdir, i), transparent=True, bbox_inches='tight')
