@@ -27,6 +27,10 @@ if args.fraction:
 
 print("sampling " + str(args.number) + " out of " + str(total_records) + " records")
 
+if args.number > total_records:
+    args.number = total_records
+    print("update: sampling " + str(args.number) + " out of " + str(total_records) + " records")
+
 output_files = []
 output_sequence_sets = []
 for i in range(args.sample):

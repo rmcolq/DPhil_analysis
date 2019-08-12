@@ -379,7 +379,7 @@ for i in range(3,len(gene_partition)):
     half_k = int(i/2) + 1
     #print(i,half_k, [t for t in range(1,half_k)], avg_spectrum_dict[i])
     ax.scatter([t for t in range(1,half_k)],avg_spectrum_dict[i], c='black')
-    ax.set(xlabel="Frequency of SNP", ylabel='Number of SNP sites at this frequency')
+    ax.set(xlabel="s - Frequency of SNP", ylabel='Mean # sites per gene\nat frequency s or k-s')
     
     n = len(gene_partition)
     y_lsq = [exp_sfs(*res_lsq.x, n, i, t) for t in range(1,half_k)]

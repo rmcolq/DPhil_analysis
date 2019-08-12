@@ -68,13 +68,14 @@ Channel
     .set{ chunks_ch }
 
 process pandora_index {
-  memory { 0.25.MB * params.chunk_size * task.attempt }
+  memory { 1.MB * params.chunk_size * task.attempt }
   errorStrategy {task.attempt < 3 ? 'retry' : 'fail'}
   maxRetries 3
   container {
       'shub://rmcolq/pandora:pandora'
   }
   maxForks params.max_forks
+  time '2d'
 
   input: 
   file prg from chunks_ch
@@ -85,7 +86,7 @@ process pandora_index {
   set(file("${prg}"), file("${prg}.k${k}.w${w}.idx"), file("kmer_prgs")) into pandora_idx
 
   """
-  pandora index -w ${w} -k ${k} ${prg}
+  pandora index -w ${w} -k ${k} -t 4 ${prg}
   """
 } 
 
@@ -98,6 +99,7 @@ process pandora_compare_illumina {
       'shub://rmcolq/pandora:pandora'
   }
   maxForks params.max_forks
+  time '12h'
 
   input:
   set(file(prg), file(idx), file(kmer_prgs)) from pandora_idx
@@ -131,6 +133,7 @@ process pandora_compare {
       'shub://rmcolq/pandora:pandora'
   }   
   maxForks params.max_forks
+  time '12h'
   
   input:
   set(file(prg), file(idx), file(kmer_prgs)) from pandora_idx

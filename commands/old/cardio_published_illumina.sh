@@ -25,7 +25,22 @@ echo -e "$i\t/nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_publishe
 rm /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/"$i"_both.fastq
 done
 
+for i in $(cat /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX | cut -f1)
+do
+echo $i
+zcat /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/"$i"_both.fastq.gz > /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/"$i"_both.fastq
+python2 /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/scripts/subsample_fastq.py /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/"$i"_both.fastq /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/$i.30x.fastq -n 1000000
+mv /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/$i.30x.fastq.0 /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/$i.30x.fastq
+echo -e "$i\t/nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/$i.30x.fastq" >> /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_30
+rm /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/$i/"$i"_both.fastq
+done
 
 mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/070519
 cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/070519
 bsub.py 3 pandora_compare_in_chunks_070519 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/pandora_compare_in_chunks.nf --pangenome_prg /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa --w 19 --k 31 --read_index /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_45 --chunk_size 2000 --num_samples 266 --max_covg 50 --illumina --min_cluster_size 5 -w pandora_work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/070519
+bsub.py 3 pandora_compare_in_chunks_070519 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/pandora_compare_in_chunks.nf --pangenome_prg /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa --w 19 --k 31 --read_index /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_30 --chunk_size 2000 --num_samples 266 --max_covg 50 --illumina --min_cluster_size 5 -w pandora_work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
+
+mkdir -p /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/280519
+cd /hps/nobackup/iqbal/rmcolq/projects/DPhil_analysis/analysis/pandora_compare/trace/280519
+bsub.py 3 pandora_compare_in_chunks_070519 nextflow run /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/pandora_compare_in_chunks.nf --pangenome_prg /hps/nobackup/iqbal/rmcolq/projects/panrg/ecoli/k31.w19/ecoli_pangenome_PRG_050319.fa --w 19 --k 31 --read_index /nfs/leia/research/iqbal/rmcolq/data/cardio/illumina_TRACE_published/INDEX_30 --chunk_size 2000 --num_samples 266 --max_covg 50 --illumina --min_cluster_size 5 -w pandora_work -c /nfs/leia/research/iqbal/rmcolq/git/DPhil_analysis/nextflow/nextflow.config -resume
